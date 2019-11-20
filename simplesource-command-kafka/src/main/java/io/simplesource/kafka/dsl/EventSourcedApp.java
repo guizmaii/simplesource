@@ -8,7 +8,9 @@ import io.simplesource.kafka.spec.AggregateSetSpec;
 import io.simplesource.kafka.spec.AggregateSpec;
 import io.simplesource.kafka.spec.CommandSpec;
 import io.simplesource.kafka.util.SpecUtils;
+import lombok.val;
 
+import java.lang.reflect.ParameterizedType;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executors;
@@ -70,6 +72,19 @@ public final class EventSourcedApp {
         }
     }
 
+    public static final class UnknownAggregateException extends RuntimeException {
+        final String aggregateName;
+        final Class k;
+        final Class c;
+
+        public UnknownAggregateException(final String aggregateName, final Class k, final Class c) {
+            super(aggregateName + " doesn't exists for the types <" + k.getSimpleName() + ", " + c.getSimpleName() + ">");
+            this.aggregateName = aggregateName;
+            this.k = k;
+            this.c = c;
+        }
+    }
+
     /**
      * Creates a CommandAPI instance
      *
@@ -78,10 +93,18 @@ public final class EventSourcedApp {
      *
      * @return a CommandAPI
      */
-    public <K, C> CommandAPI<K, C> createCommandAPI(String clientId, String aggregateName) {
-        AggregateSpec<K, C, ?, ?> aggregateSpec = (AggregateSpec<K, C, ?, ?>) aggregateSetSpec.aggregateConfigMap().get(aggregateName);
+public <K, C> CommandAPI<K, C> createCommandAPI(String clientId, String aggregateName) throws UnknownAggregateException  {
+        try {
+            AggregateSpec<K, C, ?, ?> aggregateSpec = (AggregateSpec<K, C, ?, ?>) aggregateSetSpec.aggregateConfigMap().get(aggregateName);
+            CommandSpec<K, C> commandSpec = SpecUtils.getCommandSpec(aggregateSpec, clientId);
+            return new KafkaCommandAPI<>(commandSpec, kafkaConfig, scheduler);
+        } catch (ClassCastException e) {
+            // Hack found here: https://stackoverflow.com/questions/3437897/how-to-get-a-class-instance-of-generics-type-t
+            val actualTypeArguments = ((ParameterizedType) this.getClass().getGenericSuperclass()).getActualTypeArguments();
+            Class<K> k = (Class<K>) actualTypeArguments[0];
+            Class<C> c = (Class<C>) actualTypeArguments[1];
 
-        CommandSpec<K, C> commandSpec = SpecUtils.getCommandSpec(aggregateSpec, clientId);
-        return new KafkaCommandAPI<>(commandSpec, kafkaConfig, scheduler);
+            throw new UnknownAggregateException(aggregateName, k, c);
+        }
     }
 }
