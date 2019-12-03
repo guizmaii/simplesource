@@ -41,9 +41,8 @@ public class KafkaConfig {
         final Map<String, Object> configs = new HashMap<>();
         configs.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers());
         configs.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true);
-        configs.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, 1000);
+        configs.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, 150);
         configs.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
-        configs.put(ConsumerConfig.INTERCEPTOR_CLASSES_CONFIG, "io.confluent.monitoring.clients.interceptor.MonitoringConsumerInterceptor");
         return configs;
     }
 
@@ -56,7 +55,6 @@ public class KafkaConfig {
             configs.put(ProducerConfig.RETRIES_CONFIG, 3);
             configs.put(ProducerConfig.ACKS_CONFIG, "all");
         }
-        configs.put(ProducerConfig.INTERCEPTOR_CLASSES_CONFIG, "io.confluent.monitoring.clients.interceptor.MonitoringProducerInterceptor");
         return configs;
     }
 
@@ -71,13 +69,7 @@ public class KafkaConfig {
             config.put(StreamsConfig.PROCESSING_GUARANTEE_CONFIG, StreamsConfig.EXACTLY_ONCE);
             config.put(StreamsConfig.STATE_DIR_CONFIG, "/tmp/kafka-streams");
             config.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "snappy");
-            config.put(
-                    StreamsConfig.PRODUCER_PREFIX + ProducerConfig.INTERCEPTOR_CLASSES_CONFIG,
-                    "io.confluent.monitoring.clients.interceptor.MonitoringProducerInterceptor");
-
-            config.put(
-                    StreamsConfig.CONSUMER_PREFIX + ConsumerConfig.INTERCEPTOR_CLASSES_CONFIG,
-                    "io.confluent.monitoring.clients.interceptor.MonitoringConsumerInterceptor");
+            config.put(ProducerConfig.LINGER_MS_CONFIG, 0);
         }
 
         public Builder withKafkaApplicationId(final String applicationId) {

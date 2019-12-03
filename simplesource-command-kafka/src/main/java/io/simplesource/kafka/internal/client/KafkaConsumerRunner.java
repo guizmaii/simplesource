@@ -65,9 +65,9 @@ final class KafkaConsumerRunner {
             try {
                 consumer.subscribe(Collections.singletonList(topicName));
                 while (!closed.get()) {
-                    ConsumerRecords<String, R> records = consumer.poll(Duration.ofSeconds(1));
+                    ConsumerRecords<String, R> records = consumer.poll(Duration.ofMillis(10));
                     // Handle new records
-                    records.iterator().forEachRemaining(record -> {
+                    records.forEach(record -> {
                         String recordKey = record.key();
                         // TODO factor this out
                         UUID id = UUID.fromString(record.key().substring(recordKey.length() - 36));

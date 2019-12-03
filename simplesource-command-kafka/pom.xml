@@ -44,10 +44,6 @@
             <artifactId>kafka-streams-avro-serde</artifactId>
         </dependency>
         <dependency>
-            <groupId>io.confluent</groupId>
-            <artifactId>monitoring-interceptors</artifactId>
-        </dependency>
-        <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
         </dependency>

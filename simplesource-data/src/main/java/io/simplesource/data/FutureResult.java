@@ -3,6 +3,7 @@ package io.simplesource.data;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -52,6 +53,10 @@ public final class FutureResult<E, T> {
 
     public static <E, T> FutureResult<E, T> of(final T t) {
         return new FutureResult<>(() -> Result.success(t));
+    }
+
+    public static <E, R1, R2, R3> FutureResult<E, R3> map2(FutureResult<E, R1> a, FutureResult<E, R2> b, BiFunction<R1, R2, R3> f) {
+        return FutureResult.ofCompletableFuture(a.run.thenCombine(b.run, (r1, r2) -> Result.map2(r1, r2, f)));
     }
 
     @SafeVarargs
@@ -119,4 +124,5 @@ public final class FutureResult<E, T> {
 
         return new FutureResult<>(future);
     }
+
 }

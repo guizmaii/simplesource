@@ -201,11 +201,6 @@
                     </exclusion>
                 </exclusions>
             </dependency>
-            <dependency>
-                <groupId>io.confluent</groupId>
-                <artifactId>monitoring-interceptors</artifactId>
-                <version>${confluent.version}</version>
-            </dependency>
 
 <!--            <dependency>-->
 <!--                <groupId>io.netty</groupId>-->

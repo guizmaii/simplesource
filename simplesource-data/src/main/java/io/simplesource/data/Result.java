@@ -2,6 +2,7 @@ package io.simplesource.data;
 
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -51,6 +52,10 @@ public abstract class Result<E, A> {
      */
     public static <E, S> Result<E, S> failure(final NonEmptyList<E> errors) {
         return new Failure<>(errors);
+    }
+
+    public static <E, R1, R2, R3> Result<E, R3> map2(Result<E, R1> a, Result<E, R2> b, BiFunction<R1, R2, R3> f) {
+        return a.flatMap(aa -> b.map(bb -> f.apply(aa, bb)));
     }
 
     /**
