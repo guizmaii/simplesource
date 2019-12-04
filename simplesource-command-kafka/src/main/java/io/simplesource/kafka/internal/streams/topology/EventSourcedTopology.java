@@ -58,20 +58,17 @@ public final class EventSourcedTopology {
         final KStream<K, AggregateUpdateResult<A>> aggregateUpdateResults =
                 commandEvents
                     .mapValues((serializedKey, result) -> {
-                        final Result<CommandError, AggregateUpdate<A>> aggregateUpdateResult = result.eventValue().map(events -> {
-                            final BiFunction<AggregateUpdate<A>, ValueWithSequence<E>, AggregateUpdate<A>> reducer =
-                                    (aggregateUpdate, eventWithSequence) -> new AggregateUpdate<>(
-                                            ctx.aggregator().applyEvent(aggregateUpdate.aggregate(), eventWithSequence.value()),
-                                            eventWithSequence.sequence()
-                                    );
-                            return events.fold(
+                        final Result<CommandError, AggregateUpdate<A>> aggregateUpdateResult = result.eventValue().map(events ->
+                                events.fold(
                                     eventWithSequence -> new AggregateUpdate<>(
                                             ctx.aggregator().applyEvent(result.aggregate(), eventWithSequence.value()),
                                             eventWithSequence.sequence()
                                     ),
-                                    reducer
-                            );
-                        });
+                                    (aggregateUpdate, eventWithSequence) -> new AggregateUpdate<>(
+                                            ctx.aggregator().applyEvent(aggregateUpdate.aggregate(), eventWithSequence.value()),
+                                            eventWithSequence.sequence()
+                                    )
+                            ));
 
                         return new AggregateUpdateResult<>(result.commandId(), result.readSequence(), aggregateUpdateResult);
                     });
