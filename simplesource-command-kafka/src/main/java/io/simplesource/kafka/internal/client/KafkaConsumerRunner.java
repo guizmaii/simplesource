@@ -65,7 +65,7 @@ final class KafkaConsumerRunner {
             try {
                 consumer.subscribe(Collections.singletonList(topicName));
                 while (!closed.get()) {
-                    ConsumerRecords<String, R> records = consumer.poll(Duration.ofMillis(10));
+                    ConsumerRecords<String, R> records = consumer.poll(Duration.ofSeconds(1));
                     // Handle new records
                     records.forEach(record -> {
                         String recordKey = record.key();
