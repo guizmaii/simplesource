@@ -89,7 +89,8 @@ public final class EventSourcedTopology {
         final val joinWindow = JoinWindows.of(ctx.retention()).until(ctx.retention().toMillis() * 2 + 1);
         final val joinWith = Joined.with(ctx.serdes().commandId(), ctx.serdes().commandResponse(), Serdes.String());
 
-        commandResponseStream.selectKey((k, v) -> v.commandId())
+        commandResponseStream
+            .selectKey((k, v) -> v.commandId())
             .join(resultsTopicMapStream, Tuple2::of, joinWindow, joinWith)
             .map((uuid, tuple) -> KeyValue.pair(String.format("%s:%s", tuple.v2(), uuid.id.toString()), tuple.v1()))
             .to((key, value, context) -> key.substring(0, key.length() - 37), Produced.with(Serdes.String(), ctx.serdes().commandResponse()));
