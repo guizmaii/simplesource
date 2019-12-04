@@ -29,10 +29,6 @@ final class DistributorContext<K, V> {
 
 final class ResultDistributor {
 
-    static <K> KStream<K, String> resultTopicMapStream(DistributorContext<K, ?> ctx, final StreamsBuilder builder) {
-        return builder.stream(ctx.topicNameMapTopic, Consumed.with(ctx.serdes().uuid(), Serdes.String()));
-    }
-
     static <K, V> void distribute(DistributorContext<K, V> ctx, final KStream<?, V> resultStream, final KStream<K, String> topicNameStream) {
 
         DistributorSerdes<K, V> serdes = ctx.serdes();

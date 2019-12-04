@@ -6,7 +6,9 @@ import io.simplesource.kafka.internal.util.Tuple2;
 import io.simplesource.kafka.model.*;
 import io.simplesource.kafka.spec.AggregateSpec;
 import lombok.Value;
+import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.StreamsBuilder;
+import org.apache.kafka.streams.kstream.Consumed;
 import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.KTable;
 
@@ -30,11 +32,13 @@ public final class EventSourcedTopology {
                 CommandResponse::commandId,
                 CommandId::id
         );
-        final KStream<CommandId, String> resultsTopicMapStream = ResultDistributor.resultTopicMapStream(distCtx,  builder);
+
+        final KStream<CommandId, String> resultsTopicMapStream = builder.stream(distCtx.topicNameMapTopic, Consumed.with(distCtx.serdes().uuid(), Serdes.String()));
 
         // Handle idempotence by splitting stream into processed and unprocessed
         Tuple2<KStream<K, CommandRequest<K, C>>, KStream<K, CommandResponse<K>>> reqResp =
                 EventSourcedStreams.getProcessedCommands(ctx, commandRequestStream, commandResponseStream);
+
         final KStream<K, CommandRequest<K, C>> unprocessedRequests = reqResp.v1();
         final KStream<K, CommandResponse<K>> processedResponses = reqResp.v2();
         
