@@ -2,6 +2,7 @@ package io.simplesource.kafka.internal.streams.topology;
 
 import io.simplesource.api.CommandError;
 import io.simplesource.api.CommandId;
+import io.simplesource.data.Prelude;
 import io.simplesource.data.Result;
 import io.simplesource.kafka.internal.util.Tuple2;
 import io.simplesource.kafka.model.AggregateUpdate;
@@ -61,7 +62,7 @@ public final class EventSourcedTopology {
             unprocessedRequests.leftJoin(aggregateTable, (r, a) -> CommandRequestTransformer.getCommandEvents(ctx, a, r), commandRequestAggregateUpdateJoined);
 
         final KStream<K, ValueWithSequence<E>> eventsWithSequence =
-            commandEvents.flatMapValues(result -> result.eventValue().fold(reasons -> Collections.emptyList(), ArrayList::new));
+            commandEvents.flatMapValues(result -> result.eventValue().fold(reasons -> Collections.emptyList(), Prelude::identity));
 
         final KStream<K, AggregateUpdateResult<A>> aggregateUpdateResults =
             commandEvents
