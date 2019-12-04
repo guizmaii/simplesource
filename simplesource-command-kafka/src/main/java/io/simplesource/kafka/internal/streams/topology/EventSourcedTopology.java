@@ -55,7 +55,26 @@ public final class EventSourcedTopology {
         final KStream<K, ValueWithSequence<E>> eventsWithSequence =
                 commandEvents.flatMapValues(result -> result.eventValue().fold(reasons -> Collections.emptyList(), ArrayList::new));
 
-        final KStream<K, AggregateUpdateResult<A>> aggregateUpdateResults = aggregateUpdateResults(ctx, commandEvents);
+        final KStream<K, AggregateUpdateResult<A>> aggregateUpdateResults =
+                commandEvents
+                    .mapValues((serializedKey, result) -> {
+                        final Result<CommandError, AggregateUpdate<A>> aggregateUpdateResult = result.eventValue().map(events -> {
+                            final BiFunction<AggregateUpdate<A>, ValueWithSequence<E>, AggregateUpdate<A>> reducer =
+                                    (aggregateUpdate, eventWithSequence) -> new AggregateUpdate<>(
+                                            ctx.aggregator().applyEvent(aggregateUpdate.aggregate(), eventWithSequence.value()),
+                                            eventWithSequence.sequence()
+                                    );
+                            return events.fold(
+                                    eventWithSequence -> new AggregateUpdate<>(
+                                            ctx.aggregator().applyEvent(result.aggregate(), eventWithSequence.value()),
+                                            eventWithSequence.sequence()
+                                    ),
+                                    reducer
+                            );
+                        });
+
+                        return new AggregateUpdateResult<>(result.commandId(), result.readSequence(), aggregateUpdateResult);
+                    });
 
         final KStream<K, AggregateUpdate<A>> aggregateUpdates =
                 aggregateUpdateResults
@@ -109,32 +128,6 @@ public final class EventSourcedTopology {
 
     private static <K> long responseSequence(final CommandResponse<K> response) {
         return response.sequenceResult().getOrElse(response.readSequence()).getSeq();
-    }
-
-    private static <K, E, A> KStream<K, AggregateUpdateResult<A>> aggregateUpdateResults(
-            final AggregateSpec<K, ?, E, A> ctx,
-            final KStream<K, CommandEvents<E, A>> eventResultStream) {
-        return eventResultStream
-                .mapValues((serializedKey, result) -> {
-                    final Result<CommandError, AggregateUpdate<A>> aggregateUpdateResult = result.eventValue().map(events -> {
-                        final BiFunction<AggregateUpdate<A>, ValueWithSequence<E>, AggregateUpdate<A>> reducer =
-                                (aggregateUpdate, eventWithSequence) -> new AggregateUpdate<>(
-                                        ctx.aggregator().applyEvent(aggregateUpdate.aggregate(), eventWithSequence.value()),
-                                        eventWithSequence.sequence()
-                                );
-                        return events.fold(
-                                eventWithSequence -> new AggregateUpdate<>(
-                                        ctx.aggregator().applyEvent(result.aggregate(), eventWithSequence.value()),
-                                        eventWithSequence.sequence()
-                                ),
-                                reducer
-                        );
-                    });
-                    return new AggregateUpdateResult<>(
-                            result.commandId(),
-                            result.readSequence(),
-                            aggregateUpdateResult);
-                });
     }
 
 }
