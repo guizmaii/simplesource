@@ -23,7 +23,13 @@ public final class EventSourcedTopology {
         final KStream<K, CommandRequest<K, C>> commandRequestStream = EventSourcedConsumer.commandRequestStream(ctx, builder);
         final KStream<K, CommandResponse<K>> commandResponseStream = EventSourcedConsumer.commandResponseStream(ctx, builder);
         final KTable<K, AggregateUpdate<A>> aggregateTable = EventSourcedConsumer.aggregateTable(ctx, builder);
-        final DistributorContext<CommandId, CommandResponse<K>> distCtx = distributorContext(ctx);
+        final DistributorContext<CommandId, CommandResponse<K>> distCtx = new DistributorContext<>(
+                ctx.topicName(AggregateResources.TopicEntity.COMMAND_RESPONSE_TOPIC_MAP),
+                new DistributorSerdes<>(ctx.serdes().commandId(), ctx.serdes().commandResponse()),
+                ctx.generation().stateStoreSpec(),
+                CommandResponse::commandId,
+                CommandId::id
+        );
         final KStream<CommandId, String> resultsTopicMapStream = ResultDistributor.resultTopicMapStream(distCtx,  builder);
 
         // Handle idempotence by splitting stream into processed and unprocessed
@@ -53,15 +59,6 @@ public final class EventSourcedTopology {
         return new InputStreams<>(commandRequestStream, commandResponseStream);
     }
 
-    private static <K> DistributorContext<CommandId, CommandResponse<K>> distributorContext(AggregateSpec<K, ?, ?, ?> ctx) {
-        return new DistributorContext<>(
-                ctx.topicName(AggregateResources.TopicEntity.COMMAND_RESPONSE_TOPIC_MAP),
-                new DistributorSerdes<>(ctx.serdes().commandId(), ctx.serdes().commandResponse()),
-                ctx.generation().stateStoreSpec(),
-                CommandResponse::commandId,
-                CommandId::id
-        );
-    }
 }
 
 
