@@ -39,13 +39,14 @@ public final class EventSourcedTopology {
         final KTable<CommandId, CommandResponse<K>> commandResponseById =
             commandResponseStream
                 .selectKey((key, response) -> response.commandId())
-                .groupByKey(ctx.serializedCommandResponse())
+                .groupByKey(Grouped.with(ctx.serdes().commandId(), ctx.serdes().commandResponse()))
                 .reduce((r1, r2) -> responseSequence(r1) > responseSequence(r2) ? r1 : r2);
 
+        final val requestCommandResponseJoined = Joined.with(ctx.serdes().commandId(), ctx.serdes().commandRequest(), ctx.serdes().commandResponse());
         final KStream<K, Tuple2<CommandRequest<K, C>, CommandResponse<K>>>[] branches =
             commandRequestStream
                 .selectKey((k, v) -> v.commandId())
-                .leftJoin(commandResponseById, Tuple2::new, ctx.commandRequestResponseJoined())
+                .leftJoin(commandResponseById, Tuple2::new, requestCommandResponseJoined)
                 .selectKey((k, v) -> v.v1().aggregateKey())
                 .branch((k, tuple) -> tuple.v2() == null, (k, tuple) -> tuple.v2() != null);
 
@@ -53,8 +54,9 @@ public final class EventSourcedTopology {
         final KStream<K, CommandResponse<K>> processedResponses = branches[1].mapValues((k, tuple) -> tuple.v2());
 
         // Transformations
+        final val commandRequestAggregateUpdateJoined = Joined.with(ctx.serdes().aggregateKey(), ctx.serdes().commandRequest(), ctx.serdes().aggregateUpdate());
         final KStream<K, CommandEvents<E, A>> commandEvents =
-            unprocessedRequests.leftJoin(aggregateTable, (r, a) -> CommandRequestTransformer.getCommandEvents(ctx, a, r), ctx.commandRequestAggregateUpdateJoined());
+            unprocessedRequests.leftJoin(aggregateTable, (r, a) -> CommandRequestTransformer.getCommandEvents(ctx, a, r), commandRequestAggregateUpdateJoined);
 
         final KStream<K, ValueWithSequence<E>> eventsWithSequence =
             commandEvents.flatMapValues(result -> result.eventValue().fold(reasons -> Collections.emptyList(), ArrayList::new));
@@ -102,7 +104,7 @@ public final class EventSourcedTopology {
 
         commandResponseStream
             .selectKey((k, v) -> v.commandId())
-            .join(resultsTopicMapStream, Tuple2::of, joinWindow, joinWith)
+            .join(resultsTopicMapStream, Tuple2::new, joinWindow, joinWith)
             .map((commandId, tuple) -> KeyValue.pair(String.format("%s:%s", tuple.v2(), commandId.id.toString()), tuple.v1()))
             .to((key, value, context) -> key.substring(0, key.length() - 37), Produced.with(Serdes.String(), ctx.serdes().commandResponse()));
     }
