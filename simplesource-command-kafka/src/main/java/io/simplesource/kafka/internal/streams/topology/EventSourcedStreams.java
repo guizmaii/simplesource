@@ -13,34 +13,6 @@ import java.util.Collections;
 import java.util.function.BiFunction;
 
 final class EventSourcedStreams {
-    private static <K> long getResponseSequence(CommandResponse<K> response) {
-        return response.sequenceResult().getOrElse(response.readSequence()).getSeq();
-    }
-
-    static <K, C, E, A> Tuple2<KStream<K, CommandRequest<K, C>>, KStream<K, CommandResponse<K>>> getProcessedCommands(
-            AggregateSpec<K, C, E, A> ctx,
-            final KStream<K, CommandRequest<K, C>> commandRequestStream,
-            final KStream<K, CommandResponse<K>> commandResponseStream) {
-
-        final KTable<CommandId, CommandResponse<K>> commandResponseById = commandResponseStream
-                .selectKey((key, response) -> response.commandId())
-                .groupByKey(ctx.serializedCommandResponse())
-                .reduce((r1, r2) -> getResponseSequence(r1) > getResponseSequence(r2) ? r1 : r2);
-
-        final KStream<K, Tuple2<CommandRequest<K, C>, CommandResponse<K>>> reqResp = commandRequestStream
-                .selectKey((k, v) -> v.commandId())
-                .leftJoin(commandResponseById, Tuple2::new, ctx.commandRequestResponseJoined())
-                .selectKey((k, v) -> v.v1().aggregateKey());
-
-        KStream<K, Tuple2<CommandRequest<K, C>, CommandResponse<K>>>[] branches =
-                reqResp.branch((k, tuple) -> tuple.v2() == null, (k, tuple) -> tuple.v2() != null);
-
-        KStream<K, CommandRequest<K, C>> unProcessed = branches[0].mapValues((k, tuple) -> tuple.v1());
-
-        KStream<K, CommandResponse<K>> processed = branches[1].mapValues((k, tuple) -> tuple.v2());
-
-        return new Tuple2<>(unProcessed, processed);
-    }
 
     static <K, C, E, A> KStream<K, CommandEvents<E, A>> getCommandEvents(
             AggregateSpec<K, C, E, A> ctx,
