@@ -22,7 +22,7 @@ public final class AggregateSpec<K, C, E, A>  {
     private final Joined<CommandId, CommandRequest<K, C>, CommandResponse<K>> commandRequestResponseJoined;
     private final Joined<K, CommandRequest<K, C>, AggregateUpdate<A>> commandRequestAggregateUpdateJoined;
 
-    public AggregateSpec(String aggregateName, Serialization<K, C, E, A> serialization, Generation<K, C, E, A> generation) {
+    public AggregateSpec(final String aggregateName, final Serialization<K, C, E, A> serialization, final Generation<K, C, E, A> generation) {
         this.aggregateName = aggregateName;
         this.serialization = serialization;
         this.generation = generation;
@@ -38,7 +38,7 @@ public final class AggregateSpec<K, C, E, A>  {
         return serialization.serdes();
     }
 
-    public String topicName(AggregateResources.TopicEntity entity) {
+    public String topicName(final AggregateResources.TopicEntity entity) {
         return serialization.resourceNamingStrategy().topicName(aggregateName, entity.name());
     }
 
