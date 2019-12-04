@@ -53,8 +53,17 @@ public final class EventSourcedTopology {
         final KStream<K, ValueWithSequence<E>> eventsWithSequence = eventsWithSequence(commandEvents);
 
         final KStream<K, AggregateUpdateResult<A>> aggregateUpdateResults = aggregateUpdateResults(ctx, commandEvents);
-        final KStream<K, AggregateUpdate<A>> aggregateUpdates = aggregateUpdates(aggregateUpdateResults);
-        final KStream<K, CommandResponse<K>>commandResponses = commandResponses(aggregateUpdateResults);
+        final KStream<K, AggregateUpdate<A>> aggregateUpdates =
+                aggregateUpdateResults
+                        .flatMapValues(update ->
+                                update.updatedAggregateResult().fold(reasons -> Collections.emptyList(), Collections::singletonList)
+                        );
+
+        final KStream<K, CommandResponse<K>>commandResponses =
+                aggregateUpdateResults
+                        .mapValues((key, update) ->
+                            CommandResponse.of(update.commandId(), key, update.readSequence(), update.updatedAggregateResult().map(AggregateUpdate::sequence))
+                        );
 
         // Produce to topics
         EventSourcedPublisher.publishEvents(ctx, eventsWithSequence);
@@ -134,21 +143,6 @@ public final class EventSourcedTopology {
                             result.readSequence(),
                             aggregateUpdateResult);
                 });
-    }
-
-    private static <K, A> KStream<K, AggregateUpdate<A>> aggregateUpdates(final KStream<K, AggregateUpdateResult<A>> aggregateUpdateStream) {
-        return aggregateUpdateStream
-                .flatMapValues(update -> update.updatedAggregateResult().fold(
-                        reasons -> Collections.emptyList(),
-                        Collections::singletonList
-                ));
-    }
-
-    private static <K, A>  KStream<K, CommandResponse<K>> commandResponses(final KStream<K, AggregateUpdateResult<A>> aggregateUpdateStream) {
-        return aggregateUpdateStream
-                .mapValues((key, update) ->
-                        CommandResponse.of(update.commandId(), key, update.readSequence(), update.updatedAggregateResult().map(AggregateUpdate::sequence))
-                );
     }
 
 }
