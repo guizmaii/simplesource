@@ -40,7 +40,7 @@ public final class EventSourcedTopology {
             commandResponseStream
                 .selectKey((key, response) -> response.commandId())
                 .groupByKey(Grouped.with(ctx.serdes().commandId(), ctx.serdes().commandResponse()))
-                .reduce((r1, r2) -> responseSequence(r1) > responseSequence(r2) ? r1 : r2);
+                .reduce(EventSourcedTopology::keepLatest);
 
         final val requestCommandResponseJoined = Joined.with(ctx.serdes().commandId(), ctx.serdes().commandRequest(), ctx.serdes().commandResponse());
         final KStream<K, Tuple2<CommandRequest<K, C>, CommandResponse<K>>>[] branches =
@@ -107,6 +107,10 @@ public final class EventSourcedTopology {
             .join(resultsTopicMapStream, Tuple2::new, joinWindow, joinWith)
             .map((commandId, tuple) -> KeyValue.pair(String.format("%s:%s", tuple.v2(), commandId.id.toString()), tuple.v1()))
             .to((key, value, context) -> key.substring(0, key.length() - 37), Produced.with(Serdes.String(), ctx.serdes().commandResponse()));
+    }
+
+    private static <K> CommandResponse<K> keepLatest(final CommandResponse<K> r1, final CommandResponse<K> r2) {
+        return responseSequence(r1) > responseSequence(r2) ? r1 : r2;
     }
 
     private static <K> long responseSequence(final CommandResponse<K> response) {
