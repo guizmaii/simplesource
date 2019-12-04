@@ -49,10 +49,14 @@ public final class EventSourcedTopology {
         final KStream<K, CommandResponse<K>> processedResponses = reqResp.v2();
         
         // Transformations
-        final KStream<K, CommandEvents<E, A>> commandEvents = commandEvents(ctx, unprocessedRequests, aggregateTable);
-        final KStream<K, ValueWithSequence<E>> eventsWithSequence = eventsWithSequence(commandEvents);
+        final KStream<K, CommandEvents<E, A>> commandEvents =
+                unprocessedRequests.leftJoin(aggregateTable, (r, a) -> CommandRequestTransformer.getCommandEvents(ctx, a, r), ctx.commandRequestAggregateUpdateJoined());
+
+        final KStream<K, ValueWithSequence<E>> eventsWithSequence =
+                commandEvents.flatMapValues(result -> result.eventValue().fold(reasons -> Collections.emptyList(), ArrayList::new));
 
         final KStream<K, AggregateUpdateResult<A>> aggregateUpdateResults = aggregateUpdateResults(ctx, commandEvents);
+
         final KStream<K, AggregateUpdate<A>> aggregateUpdates =
                 aggregateUpdateResults
                         .flatMapValues(update ->
@@ -77,7 +81,6 @@ public final class EventSourcedTopology {
         // return input streams
         return new InputStreams<>(commandRequestStream, commandResponseStream);
     }
-
 
     private static  <K, C, E, A> Tuple2<KStream<K, CommandRequest<K, C>>, KStream<K, CommandResponse<K>>> processedCommands(
             final AggregateSpec<K, C, E, A> ctx,
@@ -106,17 +109,6 @@ public final class EventSourcedTopology {
 
     private static <K> long responseSequence(final CommandResponse<K> response) {
         return response.sequenceResult().getOrElse(response.readSequence()).getSeq();
-    }
-
-    private static <K, C, E, A> KStream<K, CommandEvents<E, A>> commandEvents(
-            final AggregateSpec<K, C, E, A> ctx,
-            final KStream<K, CommandRequest<K, C>> commandRequestStream,
-            final KTable<K, AggregateUpdate<A>> aggregateTable) {
-        return commandRequestStream.leftJoin(aggregateTable, (r, a) -> CommandRequestTransformer.getCommandEvents(ctx, a, r), ctx.commandRequestAggregateUpdateJoined());
-    }
-
-    private static <K, E, A> KStream<K, ValueWithSequence<E>> eventsWithSequence(final KStream<K, CommandEvents<E, A>> eventResultStream) {
-        return eventResultStream.flatMapValues(result -> result.eventValue().fold(reasons -> Collections.emptyList(), ArrayList::new));
     }
 
     private static <K, E, A> KStream<K, AggregateUpdateResult<A>> aggregateUpdateResults(
