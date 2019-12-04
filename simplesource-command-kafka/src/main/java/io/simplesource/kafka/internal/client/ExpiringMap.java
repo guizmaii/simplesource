@@ -44,10 +44,10 @@ final class ExpiringMap<K, V> {
         return null;
     }
 
-    final void removeStaleAsync(final Consumer<V> consumeV)  {
+    final void removeStaleAsync(final Consumer<V> consumeV) {
         if (outerMap.size() < 3) return;
         new Thread(() -> {
-            long outerKey = Instant.now(clock).getEpochSecond() / retention.getSeconds();
+            final long outerKey = Instant.now(clock).getEpochSecond() / retention.getSeconds();
             removeIf(consumeV, k -> k + 1 < outerKey);
         }).start();
     }
