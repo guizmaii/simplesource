@@ -55,16 +55,16 @@ public final class AggregateTestDriver<K, C, E, A> {
         EventSourcedTopology.addTopology(aggregateSpec, builder);
 
         this.aggregateSpec = aggregateSpec;
-        aggregateSerdes = aggregateSpec.serialization().serdes();
+        aggregateSerdes = aggregateSpec.serdes();
         final Properties streamConfig = new Properties();
         streamConfig.putAll(kafkaConfig.streamsConfig());
         driver = new TopologyTestDriver(builder.build(), streamConfig, 0L);
 
         // create a version of the command API that pipes stuff in and out of the TestTopologyDriver
         RequestPublisher<K, CommandRequest<K, C>> commandRequestPublisher =
-                new TestPublisher<>(driver, aggregateSerdes.aggregateKey(), aggregateSerdes.commandRequest(), topicName(TopicEntity.COMMAND_REQUEST));
+                new TestPublisher<>(driver, aggregateSerdes.aggregateKey(), aggregateSerdes.commandRequest(), aggregateSpec.topicName(TopicEntity.COMMAND_REQUEST));
         final RequestPublisher<CommandId, String> responseTopicMapPublisher =
-                new TestPublisher<>(driver, aggregateSerdes.commandId(), Serdes.String(), topicName(TopicEntity.COMMAND_RESPONSE_TOPIC_MAP));
+                new TestPublisher<>(driver, aggregateSerdes.commandId(), Serdes.String(), aggregateSpec.topicName(TopicEntity.COMMAND_RESPONSE_TOPIC_MAP));
 
         CommandSpec<K, C> commandSpec = SpecUtils.getCommandSpec(aggregateSpec,"localhost");
         RequestAPIContext<?, ?, CommandId, CommandResponse<K>> requestCtx =
@@ -103,7 +103,7 @@ public final class AggregateTestDriver<K, C, E, A> {
 
     Optional<KeyValue<K, AggregateUpdate<A>>> readAggregateTopic() {
         final ProducerRecord<K, AggregateUpdate<A>> maybeRecord = driver.readOutput(
-                topicName(TopicEntity.AGGREGATE),
+                aggregateSpec.topicName(TopicEntity.AGGREGATE),
                 aggregateSerdes.aggregateKey().deserializer(),
                 aggregateSerdes.aggregateUpdate().deserializer()
         );
@@ -115,7 +115,7 @@ public final class AggregateTestDriver<K, C, E, A> {
 
     Optional<KeyValue<K, CommandResponse<K>>> readCommandResponseTopic() {
         final ProducerRecord<K, CommandResponse<K>> maybeRecord = driver.readOutput(
-                topicName(TopicEntity.COMMAND_RESPONSE),
+                aggregateSpec.topicName(TopicEntity.COMMAND_RESPONSE),
                 aggregateSerdes.aggregateKey().deserializer(),
                 aggregateSerdes.commandResponse().deserializer()
         );
@@ -127,9 +127,9 @@ public final class AggregateTestDriver<K, C, E, A> {
 
     Optional<KeyValue<K, ValueWithSequence<E>>> readEventTopic() {
         final ProducerRecord<K, ValueWithSequence<E>> maybeRecord = driver.readOutput(
-            topicName(TopicEntity.EVENT),
+                aggregateSpec.topicName(TopicEntity.EVENT),
                 aggregateSerdes.aggregateKey().deserializer(),
-            aggregateSerdes.valueWithSequence().deserializer()
+                aggregateSerdes.valueWithSequence().deserializer()
         );
         return Optional.ofNullable(maybeRecord)
             .map(record -> KeyValue.pair(
@@ -147,8 +147,4 @@ public final class AggregateTestDriver<K, C, E, A> {
         }
     }
 
-    private String topicName(final AggregateResources.TopicEntity topic) {
-        return aggregateSpec.serialization().resourceNamingStrategy().topicName(
-            aggregateSpec.aggregateName(), topic.name());
-    }
 }

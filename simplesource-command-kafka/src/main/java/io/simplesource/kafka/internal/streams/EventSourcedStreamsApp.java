@@ -65,16 +65,7 @@ public final class EventSourcedStreamsApp {
             final Stream<KeyValue<String, TopicSpec>> requiredTopics = aggregateConfigMap
                     .values()
                     .stream()
-                    .flatMap(aggregate -> {
-                        final ResourceNamingStrategy namingStrategy = aggregate.serialization().resourceNamingStrategy();
-                        final Map<AggregateResources.TopicEntity, TopicSpec> topicConfig = aggregate.generation()
-                                .topicConfig();
-                        return topicEntities.stream().map(topicEntity ->
-                                KeyValue.pair(
-                                        namingStrategy.topicName(aggregate.aggregateName(), topicEntity.name()),
-                                        topicConfig.get(topicEntity)
-                                ));
-                    });
+                    .flatMap(aggregate -> topicEntities.stream().map(topicEntity -> KeyValue.pair(aggregate.topicName(topicEntity), aggregate.topicConfig(topicEntity))));
 
             final List<NewTopic> topicsToCreate = requiredTopics
                     .filter(topicKV -> !brokerTopics.contains(topicKV.key))
