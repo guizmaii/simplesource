@@ -5,13 +5,10 @@ import io.simplesource.kafka.api.*;
 import io.simplesource.kafka.model.AggregateUpdate;
 import io.simplesource.kafka.model.CommandRequest;
 import io.simplesource.kafka.model.CommandResponse;
-import io.simplesource.kafka.model.ValueWithSequence;
 import lombok.Value;
 import lombok.val;
-import org.apache.kafka.streams.kstream.Consumed;
 import org.apache.kafka.streams.kstream.Grouped;
 import org.apache.kafka.streams.kstream.Joined;
-import org.apache.kafka.streams.kstream.Produced;
 
 import java.util.Map;
 
@@ -21,9 +18,6 @@ public final class AggregateSpec<K, C, E, A>  {
     private final String aggregateName;
     private final Serialization<K, C, E, A> serialization;
     private final Generation<K, C, E, A> generation;
-    private final Produced<K, ValueWithSequence<E>> eventsConsumedProduced;
-    private final Produced<K, AggregateUpdate<A>> aggregatedUpdateProduced;
-    private final Produced<K, CommandResponse<K>> commandResponseProduced;
     private final Grouped<CommandId, CommandResponse<K>> serializedCommandResponse;
     private final Joined<CommandId, CommandRequest<K, C>, CommandResponse<K>> commandRequestResponseJoined;
     private final Joined<K, CommandRequest<K, C>, AggregateUpdate<A>> commandRequestAggregateUpdateJoined;
@@ -35,9 +29,6 @@ public final class AggregateSpec<K, C, E, A>  {
 
         val serde = serialization.serdes();
 
-        eventsConsumedProduced = Produced.with(serde.aggregateKey(), serde.valueWithSequence());
-        aggregatedUpdateProduced = Produced.with(serde.aggregateKey(), serde.aggregateUpdate());
-        commandResponseProduced = Produced.with(serde.aggregateKey(), serde.commandResponse());
         serializedCommandResponse = Grouped.with(serde.commandId(), serde.commandResponse());
         commandRequestResponseJoined = Joined.with(serde.commandId(), serde.commandRequest(), serde.commandResponse());
         commandRequestAggregateUpdateJoined = Joined.with(serde.aggregateKey(), serde.commandRequest(), serde.aggregateUpdate());
