@@ -26,7 +26,7 @@ public final class EventSourcedTopology {
         final DistributorContext<CommandId, CommandResponse<K>> distCtx = new DistributorContext<>(
             ctx.topicName(AggregateResources.TopicEntity.COMMAND_RESPONSE_TOPIC_MAP),
             new DistributorSerdes<>(ctx.serdes().commandId(), ctx.serdes().commandResponse()),
-            ctx.generation().stateStoreSpec(),
+            ctx.stateStoreSpec(),
             CommandResponse::commandId,
             CommandId::id
         );

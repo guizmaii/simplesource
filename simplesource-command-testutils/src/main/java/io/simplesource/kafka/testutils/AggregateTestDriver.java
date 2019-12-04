@@ -17,7 +17,6 @@ import io.simplesource.kafka.model.CommandResponse;
 import io.simplesource.kafka.model.ValueWithSequence;
 import io.simplesource.kafka.spec.AggregateSpec;
 import io.simplesource.kafka.spec.CommandSpec;
-import io.simplesource.kafka.util.SpecUtils;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.KeyValue;
@@ -61,23 +60,32 @@ public final class AggregateTestDriver<K, C, E, A> {
         driver = new TopologyTestDriver(builder.build(), streamConfig, 0L);
 
         // create a version of the command API that pipes stuff in and out of the TestTopologyDriver
-        RequestPublisher<K, CommandRequest<K, C>> commandRequestPublisher =
+        final RequestPublisher<K, CommandRequest<K, C>> commandRequestPublisher =
                 new TestPublisher<>(driver, aggregateSerdes.aggregateKey(), aggregateSerdes.commandRequest(), aggregateSpec.topicName(TopicEntity.COMMAND_REQUEST));
         final RequestPublisher<CommandId, String> responseTopicMapPublisher =
                 new TestPublisher<>(driver, aggregateSerdes.commandId(), Serdes.String(), aggregateSpec.topicName(TopicEntity.COMMAND_RESPONSE_TOPIC_MAP));
 
-        CommandSpec<K, C> commandSpec = SpecUtils.getCommandSpec(aggregateSpec,"localhost");
-        RequestAPIContext<?, ?, CommandId, CommandResponse<K>> requestCtx =
+        final CommandSpec<K, C> commandSpec =
+            new CommandSpec<>(
+                aggregateSpec.aggregateName(),
+                "localhost",
+                aggregateSpec.resourceNamingStrategy(),
+                aggregateSpec.serdes(),
+                aggregateSpec.stateStoreSpec(),
+                aggregateSpec.topicConfig(AggregateResources.TopicEntity.COMMAND_RESPONSE)
+            );
+
+        final RequestAPIContext<?, ?, CommandId, CommandResponse<K>> requestCtx =
                 KafkaCommandAPI.getRequestAPIContext(commandSpec, kafkaConfig, scheduledExecutor);
         
-        TestTopologyReceiver.ReceiverSpec<CommandId, CommandResponse<K>> receiverSpec = new TestTopologyReceiver.ReceiverSpec<>(
+        final TestTopologyReceiver.ReceiverSpec<CommandId, CommandResponse<K>> receiverSpec = new TestTopologyReceiver.ReceiverSpec<>(
                 requestCtx.privateResponseTopic(), 400, 4,
                 requestCtx.responseValueSerde(),
                 stringKey -> CommandId.of(UUID.fromString(stringKey.substring(stringKey.length() - 36))));
 
         statePollers = new ArrayList<>();
         final Function<BiConsumer<CommandId, CommandResponse<K>>, ResponseSubscription> receiverAttacher = updateTarget -> {
-            TestTopologyReceiver<CommandId, CommandResponse<K>> receiver = new TestTopologyReceiver<CommandId, CommandResponse<K>>(updateTarget, driver, receiverSpec);
+            final TestTopologyReceiver<CommandId, CommandResponse<K>> receiver = new TestTopologyReceiver<CommandId, CommandResponse<K>>(updateTarget, driver, receiverSpec);
             statePollers.add(receiver::pollForState);
             return receiver;
         };

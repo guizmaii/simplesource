@@ -22,7 +22,6 @@ final class CommandRequestTransformer {
     static <K, C, E, A> CommandEvents<E, A> getCommandEvents(final AggregateSpec<K, C, E, A> ctx, final AggregateUpdate<A> currentUpdateInput, final CommandRequest<K, C> request) {
 
         final K readOnlyKey = request.aggregateKey();
-        final AggregateSpec.Generation<K, C, E, A> generation = ctx.generation();
 
         AggregateUpdate<A> currentUpdatePre;
         try {
@@ -37,7 +36,7 @@ final class CommandRequestTransformer {
         try {
             final Optional<CommandError> maybeReject =
                     Objects.equals(request.readSequence(), currentUpdate.sequence()) ? Optional.empty() :
-                            generation.invalidSequenceHandler().shouldReject(
+                            ctx.invalidSequenceHandler().shouldReject(
                                     readOnlyKey,
                                     currentUpdate.sequence(),
                                     request.readSequence(),
@@ -46,7 +45,7 @@ final class CommandRequestTransformer {
 
             commandResult = maybeReject.<Result<CommandError, NonEmptyList<E>>>map(
                     commandErrorReason -> Result.failure(commandErrorReason)).orElseGet(
-                    () -> generation.commandHandler().interpretCommand(
+                    () -> ctx.commandHandler().interpretCommand(
                             readOnlyKey,
                             currentUpdate.aggregate(),
                             request.command()));

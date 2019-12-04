@@ -110,10 +110,7 @@ public final class AggregateBuilder<K, C, E, A> {
         // set missing topic configuration to default
         withDefaultTopicSpec(1, 1, 1);
 
-        final AggregateSpec.Generation<K, C, E, A> generation =
-            new AggregateSpec.Generation<>(topicConfig, commandResponseStoreSpec, commandHandler, invalidSequenceHandler, aggregator, initialValue);
-
-        return new AggregateSpec<>(name, resourceNamingStrategy, aggregateSerdes, generation);
+        return new AggregateSpec<>(name, resourceNamingStrategy, aggregateSerdes, topicConfig, commandResponseStoreSpec, commandHandler, invalidSequenceHandler, aggregator, initialValue);
     }
 
     private Map<TopicEntity, TopicSpec> defaultTopicConfig(final int partitions, final int replication, final int retentionDays) {

@@ -16,8 +16,8 @@ import java.util.Map;
 
 @Value
 public final class AggregateSpec<K, C, E, A>  {
+
     private final String aggregateName;
-    private final Generation<K, C, E, A> generation;
     private final Grouped<CommandId, CommandResponse<K>> serializedCommandResponse;
     private final Joined<CommandId, CommandRequest<K, C>, CommandResponse<K>> commandRequestResponseJoined;
     private final Joined<K, CommandRequest<K, C>, AggregateUpdate<A>> commandRequestAggregateUpdateJoined;
@@ -25,11 +25,33 @@ public final class AggregateSpec<K, C, E, A>  {
     private final ResourceNamingStrategy resourceNamingStrategy;
     private final AggregateSerdes<K, C, E, A> serdes;
 
-    public AggregateSpec(final String aggregateName, final ResourceNamingStrategy resourceNamingStrategy, final AggregateSerdes<K, C, E, A> serdes, final Generation<K, C, E, A> generation) {
+    private final Map<AggregateResources.TopicEntity, TopicSpec> topicConfig;
+    private final WindowSpec stateStoreSpec;
+    private final CommandHandler<K, C, E, A> commandHandler;
+    private final InvalidSequenceHandler<K, C, A> invalidSequenceHandler;
+    private final Aggregator<E, A> aggregator;
+    private final InitialValue<K, A> initialValue;
+
+    public AggregateSpec(
+        final String aggregateName,
+        final ResourceNamingStrategy resourceNamingStrategy,
+        final AggregateSerdes<K, C, E, A> serdes,
+        final Map<AggregateResources.TopicEntity, TopicSpec> topicConfig,
+        final WindowSpec stateStoreSpec,
+        final CommandHandler<K, C, E, A> commandHandler,
+        final InvalidSequenceHandler<K, C, A> invalidSequenceHandler,
+        final Aggregator<E, A> aggregator,
+        final InitialValue<K, A> initialValue
+    ) {
         this.aggregateName = aggregateName;
         this.resourceNamingStrategy = resourceNamingStrategy;
         this.serdes = serdes;
-        this.generation = generation;
+        this.topicConfig = topicConfig;
+        this.stateStoreSpec = stateStoreSpec;
+        this.commandHandler = commandHandler;
+        this.invalidSequenceHandler = invalidSequenceHandler;
+        this.aggregator = aggregator;
+        this.initialValue = initialValue;
 
         serializedCommandResponse = Grouped.with(serdes.commandId(), serdes.commandResponse());
         commandRequestResponseJoined = Joined.with(serdes.commandId(), serdes.commandRequest(), serdes.commandResponse());
@@ -41,25 +63,7 @@ public final class AggregateSpec<K, C, E, A>  {
     }
 
     public TopicSpec topicConfig(final AggregateResources.TopicEntity entity) {
-        return  generation.topicConfig().get(entity);
+        return topicConfig.get(entity);
     }
 
-    public InitialValue<K, A> initialValue() {
-        return generation.initialValue();
-    }
-
-    public Aggregator<E, A> aggregator() {
-        return generation.aggregator();
-    }
-
-
-    @Value
-    public static class Generation<K, C, E, A> {
-        private final Map<AggregateResources.TopicEntity, TopicSpec> topicConfig;
-        private final WindowSpec stateStoreSpec;
-        private final CommandHandler<K, C, E, A> commandHandler;
-        private final InvalidSequenceHandler<K, C, A> invalidSequenceHandler;
-        private final Aggregator<E, A> aggregator;
-        private final InitialValue<K, A> initialValue;
-    }
 }
