@@ -59,7 +59,7 @@ public final class EventSourcedTopology {
                                 update.updatedAggregateResult().fold(reasons -> Collections.emptyList(), Collections::singletonList)
                         );
 
-        final KStream<K, CommandResponse<K>>commandResponses =
+        final KStream<K, CommandResponse<K>> commandResponses =
                 aggregateUpdateResults
                         .mapValues((key, update) ->
                             CommandResponse.of(update.commandId(), key, update.readSequence(), update.updatedAggregateResult().map(AggregateUpdate::sequence))
