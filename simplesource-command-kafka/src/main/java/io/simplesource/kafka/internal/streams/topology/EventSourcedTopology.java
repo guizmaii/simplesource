@@ -16,13 +16,21 @@ import org.apache.kafka.streams.kstream.*;
 import java.util.ArrayList;
 import java.util.Collections;
 
+import static io.simplesource.kafka.api.AggregateResources.TopicEntity.*;
+
 public final class EventSourcedTopology {
 
     public static <K, C, E, A> void addTopology(final AggregateSpec<K, C, E, A> ctx, final StreamsBuilder builder) {
         // Consume from topics
-        final KStream<K, CommandRequest<K, C>> commandRequestStream = EventSourcedConsumer.commandRequestStream(ctx, builder);
-        final KStream<K, CommandResponse<K>> commandResponseStream = EventSourcedConsumer.commandResponseStream(ctx, builder);
-        final KTable<K, AggregateUpdate<A>> aggregateTable = EventSourcedConsumer.aggregateTable(ctx, builder);
+        final KStream<K, CommandRequest<K, C>> commandRequestStream =
+            builder.stream(ctx.topicName(COMMAND_REQUEST), Consumed.with(ctx.serdes().aggregateKey(), ctx.serdes().commandRequest()));
+
+        final KStream<K, CommandResponse<K>> commandResponseStream =
+            builder.stream(ctx.topicName(COMMAND_RESPONSE), Consumed.with(ctx.serdes().aggregateKey(), ctx.serdes().commandResponse()));
+
+        final KTable<K, AggregateUpdate<A>> aggregateTable =
+            builder.table(ctx.topicName(AGGREGATE), Consumed.with(ctx.serdes().aggregateKey(), ctx.serdes().aggregateUpdate()));
+
         final DistributorContext<CommandId, CommandResponse<K>> distCtx = new DistributorContext<>(
             ctx.topicName(AggregateResources.TopicEntity.COMMAND_RESPONSE_TOPIC_MAP),
             new DistributorSerdes<>(ctx.serdes().commandId(), ctx.serdes().commandResponse()),
