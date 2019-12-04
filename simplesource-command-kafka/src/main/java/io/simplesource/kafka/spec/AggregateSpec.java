@@ -11,6 +11,7 @@ import lombok.Value;
 import org.apache.kafka.streams.kstream.Grouped;
 import org.apache.kafka.streams.kstream.Joined;
 
+import java.time.Duration;
 import java.util.Map;
 
 
@@ -64,6 +65,10 @@ public final class AggregateSpec<K, C, E, A>  {
 
     public TopicSpec topicConfig(final AggregateResources.TopicEntity entity) {
         return topicConfig.get(entity);
+    }
+
+    public Duration retention() {
+        return stateStoreSpec.retention();
     }
 
 }

@@ -31,15 +31,8 @@ public final class EventSourcedTopology {
         final KTable<K, AggregateUpdate<A>> aggregateTable =
             builder.table(ctx.topicName(AGGREGATE), Consumed.with(ctx.serdes().aggregateKey(), ctx.serdes().aggregateUpdate()));
 
-        final DistributorContext<CommandId, CommandResponse<K>> distCtx = new DistributorContext<>(
-            ctx.topicName(AggregateResources.TopicEntity.COMMAND_RESPONSE_TOPIC_MAP),
-            new DistributorSerdes<>(ctx.serdes().commandId(), ctx.serdes().commandResponse()),
-            ctx.stateStoreSpec(),
-            CommandResponse::commandId,
-            CommandId::id
-        );
-
-        final KStream<CommandId, String> resultsTopicMapStream = builder.stream(distCtx.topicNameMapTopic, Consumed.with(distCtx.serdes().uuid(), Serdes.String()));
+        final KStream<CommandId, String> resultsTopicMapStream =
+            builder.stream(ctx.topicName(AggregateResources.TopicEntity.COMMAND_RESPONSE_TOPIC_MAP), Consumed.with(ctx.serdes().commandId(), Serdes.String()));
 
         // Handle idempotence by splitting stream into processed and unprocessed
         final Tuple2<KStream<K, CommandRequest<K, C>>, KStream<K, CommandResponse<K>>> reqResp =
@@ -93,13 +86,13 @@ public final class EventSourcedTopology {
         EventSourcedPublisher.publishCommandResponses(ctx, commandResponses);
 
         // Distribute command results
-        final val joinWindow = JoinWindows.of(distCtx.retention()).until(distCtx.retention().toMillis() * 2 + 1);
-        final val joinWith = Joined.with(distCtx.serdes().uuid(), distCtx.serdes().value(), Serdes.String());
+        final val joinWindow = JoinWindows.of(ctx.retention()).until(ctx.retention().toMillis() * 2 + 1);
+        final val joinWith = Joined.with(ctx.serdes().commandId(), ctx.serdes().commandResponse(), Serdes.String());
 
-        commandResponseStream.selectKey((k, v) -> distCtx.idMapper.apply(v))
+        commandResponseStream.selectKey((k, v) -> v.commandId())
             .join(resultsTopicMapStream, Tuple2::of, joinWindow, joinWith)
-            .map((uuid, tuple) -> KeyValue.pair(String.format("%s:%s", tuple.v2(), distCtx.keyToUuid.apply(uuid).toString()), tuple.v1()))
-            .to((key, value, context) -> key.substring(0, key.length() - 37), Produced.with(Serdes.String(), distCtx.serdes().value()));
+            .map((uuid, tuple) -> KeyValue.pair(String.format("%s:%s", tuple.v2(), uuid.id.toString()), tuple.v1()))
+            .to((key, value, context) -> key.substring(0, key.length() - 37), Produced.with(Serdes.String(), ctx.serdes().commandResponse()));
     }
 
     private static <K, C, E, A> Tuple2<KStream<K, CommandRequest<K, C>>, KStream<K, CommandResponse<K>>> processedCommands(
