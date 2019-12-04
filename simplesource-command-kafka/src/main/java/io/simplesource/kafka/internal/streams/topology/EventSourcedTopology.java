@@ -32,7 +32,7 @@ public final class EventSourcedTopology {
             builder.table(ctx.topicName(AGGREGATE), Consumed.with(ctx.serdes().aggregateKey(), ctx.serdes().aggregateUpdate()));
 
         final KStream<CommandId, String> resultsTopicMapStream =
-            builder.stream(ctx.topicName(AggregateResources.TopicEntity.COMMAND_RESPONSE_TOPIC_MAP), Consumed.with(ctx.serdes().commandId(), Serdes.String()));
+            builder.stream(ctx.topicName(COMMAND_RESPONSE_TOPIC_MAP), Consumed.with(ctx.serdes().commandId(), Serdes.String()));
 
         // Handle idempotence by splitting stream into processed and unprocessed
         final Tuple2<KStream<K, CommandRequest<K, C>>, KStream<K, CommandResponse<K>>> reqResp =
