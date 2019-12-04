@@ -9,9 +9,7 @@ import io.simplesource.kafka.api.ResourceNamingStrategy;
 import io.simplesource.kafka.model.*;
 import io.simplesource.kafka.spec.AggregateSpec;
 import lombok.Value;
-import org.apache.kafka.streams.kstream.Consumed;
-import org.apache.kafka.streams.kstream.Produced;
-import org.apache.kafka.streams.kstream.Serialized;
+import org.apache.kafka.streams.kstream.*;
 
 /**
  * @param <A> the aggregate aggregate_update
@@ -33,7 +31,9 @@ public final class TopologyContext<K, C, E, A> {
     final Produced<K, ValueWithSequence<E>> eventsConsumedProduced;
     final Produced<K, AggregateUpdate<A>> aggregatedUpdateProduced;
     final Produced<K, CommandResponse<K>> commandResponseProduced;
-    final Serialized<CommandId, CommandResponse<K>> serializedCommandResponse;
+    final Grouped<CommandId, CommandResponse<K>> serializedCommandResponse;
+    final Joined<CommandId, CommandRequest<K, C>, CommandResponse<K>> commandRequestResponseJoined;
+    final Joined<K, CommandRequest<K, C>, AggregateUpdate<A>> commandRequestAggregateUpdateJoined;
 
     public TopologyContext(AggregateSpec<K, C, E, A> aggregateSpec) {
         this.aggregateSpec = aggregateSpec;
@@ -45,9 +45,11 @@ public final class TopologyContext<K, C, E, A> {
         eventsConsumedProduced = Produced.with(serdes().aggregateKey(), serdes().valueWithSequence());
         aggregatedUpdateProduced = Produced.with(serdes().aggregateKey(), serdes().aggregateUpdate());
         commandResponseProduced = Produced.with(serdes().aggregateKey(), serdes().commandResponse());
-        serializedCommandResponse = Serialized.with(serdes().commandId(), serdes().commandResponse());
+        serializedCommandResponse = Grouped.with(serdes().commandId(), serdes().commandResponse());
         aggregator = aggregateSpec.generation().aggregator();
         initialValue = aggregateSpec.generation().initialValue();
+        commandRequestResponseJoined = Joined.with(serdes().commandId(), serdes().commandRequest(), serdes().commandResponse());
+        commandRequestAggregateUpdateJoined = Joined.with(serdes().aggregateKey(), serdes().commandRequest(), serdes().aggregateUpdate());
     }
 
     public AggregateSerdes<K, C, E, A> serdes() {

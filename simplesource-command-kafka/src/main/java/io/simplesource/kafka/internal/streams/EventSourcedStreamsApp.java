@@ -2,9 +2,10 @@ package io.simplesource.kafka.internal.streams;
 
 import io.simplesource.kafka.api.AggregateResources;
 import io.simplesource.kafka.api.ResourceNamingStrategy;
+import io.simplesource.kafka.dsl.KafkaConfig;
 import io.simplesource.kafka.internal.streams.topology.EventSourcedTopology;
 import io.simplesource.kafka.internal.streams.topology.TopologyContext;
-import io.simplesource.kafka.spec.AggregateSetSpec;
+import io.simplesource.kafka.spec.AggregateSpec;
 import io.simplesource.kafka.spec.TopicSpec;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.CreateTopicsOptions;
@@ -25,16 +26,19 @@ import static java.util.Objects.nonNull;
 public final class EventSourcedStreamsApp {
     private static final Logger logger = LoggerFactory.getLogger(EventSourcedStreamsApp.class);
 
-    private final AggregateSetSpec aggregateSetSpec;
+    private final KafkaConfig kafkaConfig;
+    private final Map<String, AggregateSpec<?, ?, ?, ?>> aggregateConfigMap;
     private final AdminClient adminClient;
 
     private KafkaStreams streams = null;
 
     public EventSourcedStreamsApp(
-            final AggregateSetSpec aggregateSetSpec
+            final KafkaConfig kafkaConfig,
+            final Map<String, AggregateSpec<?, ?, ?, ?>> aggregateConfigMap
     ) {
-        this.aggregateSetSpec = aggregateSetSpec;
-        adminClient = AdminClient.create(aggregateSetSpec.kafkaConfig().adminClientConfig());
+        this.kafkaConfig = kafkaConfig;
+        this.aggregateConfigMap = aggregateConfigMap;
+        adminClient = AdminClient.create(kafkaConfig.adminClientConfig());
     }
 
     public synchronized void start() {
@@ -59,7 +63,7 @@ public final class EventSourcedStreamsApp {
                     .map(TopicListing::name)
                     .collect(Collectors.toSet());
 
-            final Stream<KeyValue<String, TopicSpec>> requiredTopics = aggregateSetSpec.aggregateConfigMap()
+            final Stream<KeyValue<String, TopicSpec>> requiredTopics = aggregateConfigMap
                     .values()
                     .stream()
                     .flatMap(aggregate -> {
@@ -95,7 +99,7 @@ public final class EventSourcedStreamsApp {
 
     private Topology buildTopology() {
         final StreamsBuilder builder = new StreamsBuilder();
-        aggregateSetSpec.aggregateConfigMap()
+        aggregateConfigMap
                 .values()
                 .forEach(aggregateSpec -> EventSourcedTopology.addTopology(new TopologyContext<>(aggregateSpec), builder));
         return builder.build();
@@ -105,9 +109,9 @@ public final class EventSourcedStreamsApp {
         logger.info("Topology description {}", topology.describe());
 
         // empty and set state store directory
-        new File(aggregateSetSpec.kafkaConfig().stateDir()).mkdirs();
+        new File(kafkaConfig.stateDir()).mkdirs();
 
-        final KafkaStreams streams = new KafkaStreams(topology, aggregateSetSpec.kafkaConfig().streamsConfig());
+        final KafkaStreams streams = new KafkaStreams(topology, kafkaConfig.streamsConfig());
         registerExceptionHandler(logger, streams);
         addShutdownHook(logger, streams);
         streams.start();

@@ -1,7 +1,6 @@
 package io.simplesource.kafka.dsl;
 
 import io.simplesource.kafka.internal.streams.EventSourcedStreamsApp;
-import io.simplesource.kafka.spec.AggregateSetSpec;
 import io.simplesource.kafka.spec.AggregateSpec;
 
 import java.util.HashMap;
@@ -64,11 +63,7 @@ public final class EventSourcedApp {
         if (isStarted) return;
         requireNonNull(kafkaConfig, "KafkaConfig has not been defined. Please define it with 'withKafkaConfig' method.");
 
-        final AggregateSetSpec aggregateSetSpec = new AggregateSetSpec(
-                kafkaConfig,
-                aggregateConfigMap);
-
-        EventSourcedStreamsApp app = new EventSourcedStreamsApp(aggregateSetSpec);
+        EventSourcedStreamsApp app = new EventSourcedStreamsApp(kafkaConfig, aggregateConfigMap);
         app.start();
         isStarted = true;
     }
