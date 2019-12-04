@@ -20,42 +20,31 @@ final class CommandRequestTransformer {
     private static final Logger logger = LoggerFactory.getLogger(CommandRequestTransformer.class);
 
     static <K, C, E, A> CommandEvents<E, A> getCommandEvents(final AggregateSpec<K, C, E, A> ctx, final AggregateUpdate<A> currentUpdateInput, final CommandRequest<K, C> request) {
-
         final K readOnlyKey = request.aggregateKey();
-
-        AggregateUpdate<A> currentUpdatePre;
-        try {
-            currentUpdatePre = Optional.ofNullable(currentUpdateInput)
-                    .orElse(AggregateUpdate.of(ctx.initialValue().empty(readOnlyKey)));
-        } catch (final Exception e) {
-            currentUpdatePre = AggregateUpdate.of(ctx.initialValue().empty(readOnlyKey));
-        }
-        final AggregateUpdate<A> currentUpdate = currentUpdatePre;
+        final AggregateUpdate<A> currentUpdate = (currentUpdateInput != null) ? currentUpdateInput : AggregateUpdate.of(ctx.initialValue().empty(readOnlyKey));
 
         Result<CommandError, NonEmptyList<E>> commandResult;
         try {
             final Optional<CommandError> maybeReject =
-                    Objects.equals(request.readSequence(), currentUpdate.sequence()) ? Optional.empty() :
-                            ctx.invalidSequenceHandler().shouldReject(
-                                    readOnlyKey,
-                                    currentUpdate.sequence(),
-                                    request.readSequence(),
-                                    currentUpdate.aggregate(),
-                                    request.command());
+                Objects.equals(request.readSequence(), currentUpdate.sequence()) ? Optional.empty() :
+                    ctx.invalidSequenceHandler().shouldReject(
+                        readOnlyKey,
+                        currentUpdate.sequence(),
+                        request.readSequence(),
+                        currentUpdate.aggregate(),
+                        request.command());
 
-            commandResult = maybeReject.<Result<CommandError, NonEmptyList<E>>>map(
-                    commandErrorReason -> Result.failure(commandErrorReason)).orElseGet(
-                    () -> ctx.commandHandler().interpretCommand(
-                            readOnlyKey,
-                            currentUpdate.aggregate(),
-                            request.command()));
+            commandResult = maybeReject
+                .<Result<CommandError, NonEmptyList<E>>>map(commandErrorReason -> Result.failure(commandErrorReason))
+                .orElseGet(() -> ctx.commandHandler().interpretCommand(readOnlyKey, currentUpdate.aggregate(), request.command()));
         } catch (final Exception e) {
-            logger.warn("[{} aggregate] Failed to apply command handler on key {} to request {}",
-                    ctx.aggregateName(), readOnlyKey, request, e);
+            logger.warn("[{} aggregate] Failed to apply command handler on key {} to request {}", ctx.aggregateName(), readOnlyKey, request, e);
             commandResult = failure(CommandError.of(CommandError.Reason.CommandHandlerFailed, e));
         }
-        final Result<CommandError, NonEmptyList<ValueWithSequence<E>>> eventsResult = commandResult.map(
-                eventList -> {
+
+        final Result<CommandError, NonEmptyList<ValueWithSequence<E>>> eventsResult =
+            commandResult
+                .map(eventList -> {
                     // get round Java limitation of only using finals in lambdas by wrapping in an array
                     final Sequence[] eventSequence = {currentUpdate.sequence()};
                     return eventList.map(event -> {
