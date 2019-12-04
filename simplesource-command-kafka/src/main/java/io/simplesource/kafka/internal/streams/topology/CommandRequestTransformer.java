@@ -18,25 +18,24 @@ import static io.simplesource.data.Result.failure;
 
 final class CommandRequestTransformer {
     private static final Logger logger = LoggerFactory.getLogger(CommandRequestTransformer.class);
-    static <K, C, E, A> CommandEvents<E, A> getCommandEvents(
-            AggregateSpec<K, C, E, A> ctx,
-            final AggregateUpdate<A> currentUpdateInput, final CommandRequest<K, C> request) {
+
+    static <K, C, E, A> CommandEvents<E, A> getCommandEvents(final AggregateSpec<K, C, E, A> ctx, final AggregateUpdate<A> currentUpdateInput, final CommandRequest<K, C> request) {
 
         final K readOnlyKey = request.aggregateKey();
-        AggregateSpec.Generation<K, C, E, A> generation = ctx.generation();
+        final AggregateSpec.Generation<K, C, E, A> generation = ctx.generation();
 
         AggregateUpdate<A> currentUpdatePre;
         try {
             currentUpdatePre = Optional.ofNullable(currentUpdateInput)
                     .orElse(AggregateUpdate.of(ctx.initialValue().empty(readOnlyKey)));
-        } catch (Exception e) {
+        } catch (final Exception e) {
             currentUpdatePre = AggregateUpdate.of(ctx.initialValue().empty(readOnlyKey));
         }
         final AggregateUpdate<A> currentUpdate = currentUpdatePre;
 
         Result<CommandError, NonEmptyList<E>> commandResult;
         try {
-            Optional<CommandError> maybeReject =
+            final Optional<CommandError> maybeReject =
                     Objects.equals(request.readSequence(), currentUpdate.sequence()) ? Optional.empty() :
                             generation.invalidSequenceHandler().shouldReject(
                                     readOnlyKey,
@@ -65,11 +64,7 @@ final class CommandRequestTransformer {
                         return new ValueWithSequence<>(event, eventSequence[0]);
                     });
                 });
-        return new CommandEvents<>(
-                request.commandId(),
-                request.readSequence(),
-                currentUpdate.aggregate(),
-                eventsResult
-        );
+
+        return new CommandEvents<>(request.commandId(), request.readSequence(), currentUpdate.aggregate(), eventsResult);
     }
 }
