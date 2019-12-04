@@ -100,7 +100,7 @@ public final class EventSourcedStreamsApp {
         final StreamsBuilder builder = new StreamsBuilder();
         aggregateConfigMap
                 .values()
-                .forEach((AggregateSpec<?, ?, ?, ?> aggregateSpec) -> EventSourcedTopology.addTopology(aggregateSpec, builder));
+                .forEach(aggregateSpec -> EventSourcedTopology.addTopology(aggregateSpec, builder));
         return builder.build();
     }
 
