@@ -48,7 +48,7 @@ public final class EventSourcedTopology {
                 .selectKey((k, v) -> v.commandId())
                 .leftJoin(commandResponseById, Tuple2::new, requestCommandResponseJoined)
                 .selectKey((k, v) -> v.v1().aggregateKey())
-                .branch((k, tuple) -> tuple.v2() == null, (k, tuple) -> tuple.v2() != null);
+                .branch(EventSourcedTopology::hasNoResponse, EventSourcedTopology::hasResponse);
 
         final KStream<K, CommandRequest<K, C>> unprocessedRequests = branches[0].mapValues((k, tuple) -> tuple.v1());
         final KStream<K, CommandResponse<K>> processedResponses = branches[1].mapValues((k, tuple) -> tuple.v2());
@@ -115,6 +115,14 @@ public final class EventSourcedTopology {
 
     private static <K> long responseSequence(final CommandResponse<K> response) {
         return response.sequenceResult().getOrElse(response.readSequence()).getSeq();
+    }
+
+    private static <K, C> boolean hasResponse(final K ignored, final Tuple2<CommandRequest<K, C>, CommandResponse<K>> tuple) {
+        return tuple.v2() != null;
+    }
+
+    private static <K, C> boolean hasNoResponse(final K ignored, final Tuple2<CommandRequest<K, C>, CommandResponse<K>> tuple) {
+        return tuple.v2() == null;
     }
 
 }
