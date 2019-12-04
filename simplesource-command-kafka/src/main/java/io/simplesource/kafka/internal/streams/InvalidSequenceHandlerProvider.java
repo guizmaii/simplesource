@@ -8,7 +8,7 @@ import io.simplesource.kafka.dsl.InvalidSequenceStrategy;
 import java.util.Optional;
 
 public final class InvalidSequenceHandlerProvider {
-    public static <K, C, A> InvalidSequenceHandler<K, C, A> getForStrategy(InvalidSequenceStrategy strategy) {
+    public static <K, C, A> InvalidSequenceHandler<K, C, A> getForStrategy(final InvalidSequenceStrategy strategy) {
 
         if (strategy == InvalidSequenceStrategy.LastWriteWins)
             return (key, expectedSeq, currentSeq, currentAggregate, command) -> Optional.empty();
