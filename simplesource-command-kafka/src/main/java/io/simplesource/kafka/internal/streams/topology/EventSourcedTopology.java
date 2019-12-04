@@ -55,7 +55,7 @@ public final class EventSourcedTopology {
 
         // Transformations
         final val commandRequestAggregateUpdateJoined = Joined.with(ctx.serdes().aggregateKey(), ctx.serdes().commandRequest(), ctx.serdes().aggregateUpdate());
-        final KStream<K, CommandEvents<E, A>> commandEvents =
+        final KStream<K, CommandEvents<A, E>> commandEvents =
             unprocessedRequests.leftJoin(aggregateTable, (r, a) -> CommandRequestTransformer.getCommandEvents(ctx, a, r), commandRequestAggregateUpdateJoined);
 
         final KStream<K, ValueWithSequence<E>> eventsWithSequence =

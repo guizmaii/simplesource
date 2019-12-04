@@ -19,7 +19,7 @@ import static io.simplesource.data.Result.failure;
 final class CommandRequestTransformer {
     private static final Logger logger = LoggerFactory.getLogger(CommandRequestTransformer.class);
 
-    static <K, C, E, A> CommandEvents<E, A> getCommandEvents(final AggregateSpec<K, C, E, A> ctx, final AggregateUpdate<A> currentUpdateInput, final CommandRequest<K, C> request) {
+    static <K, C, E, A> CommandEvents<A, E> getCommandEvents(final AggregateSpec<K, C, E, A> ctx, final AggregateUpdate<A> currentUpdateInput, final CommandRequest<K, C> request) {
         final K readOnlyKey = request.aggregateKey();
         final AggregateUpdate<A> currentUpdate = (currentUpdateInput != null) ? currentUpdateInput : AggregateUpdate.of(ctx.initialValue().empty(readOnlyKey));
 

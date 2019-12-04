@@ -10,12 +10,12 @@ import lombok.AllArgsConstructor;
 import lombok.Value;
 
 /**
- * @param <E> all events generated for this aggregate
  * @param <A> the aggregate aggregate_update
+ * @param <E> all events generated for this aggregate
  */
 @Value
 @AllArgsConstructor
-final class CommandEvents<E, A> {
+final class CommandEvents<A, E> {
     private final CommandId commandId;
     private final Sequence readSequence;
     private final A aggregate;
