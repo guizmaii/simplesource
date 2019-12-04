@@ -33,8 +33,8 @@ public final class EventSourcedTopology {
         final KStream<CommandId, String> resultsTopicMapStream = ResultDistributor.resultTopicMapStream(distCtx,  builder);
 
         // Handle idempotence by splitting stream into processed and unprocessed
-        Tuple2<KStream<K, CommandRequest<K, C>>, KStream<K, CommandResponse<K>>> reqResp = EventSourcedStreams.getProcessedCommands(
-                ctx, commandRequestStream, commandResponseStream);
+        Tuple2<KStream<K, CommandRequest<K, C>>, KStream<K, CommandResponse<K>>> reqResp =
+                EventSourcedStreams.getProcessedCommands(ctx, commandRequestStream, commandResponseStream);
         final KStream<K, CommandRequest<K, C>> unprocessedRequests = reqResp.v1();
         final KStream<K, CommandResponse<K>> processedResponses = reqResp.v2();
         
