@@ -16,7 +16,7 @@ import static io.simplesource.kafka.api.AggregateResources.TopicEntity.COMMAND_R
 final class EventSourcedConsumer {
 
     static <K, C> KStream<K, CommandRequest<K, C>> commandRequestStream(AggregateSpec<K, C, ?, ?> ctx, final StreamsBuilder builder) {
-        return builder.stream(ctx.topicName(COMMAND_REQUEST), ctx.commandRequestConsumed());
+        return builder.stream(ctx.topicName(COMMAND_REQUEST), Consumed.with(ctx.serdes().aggregateKey(), ctx.serdes().commandRequest()));
     }
 
     static <K, A> KTable<K, AggregateUpdate<A>> aggregateTable(AggregateSpec<K, ?, ?, A> ctx, final StreamsBuilder builder) {
@@ -24,7 +24,7 @@ final class EventSourcedConsumer {
     }
 
     static <K, C> KStream<K, CommandResponse<K>> commandResponseStream(AggregateSpec<K, C, ?, ?> ctx, final StreamsBuilder builder) {
-        return builder.stream(ctx.topicName(COMMAND_RESPONSE), ctx.commandResponseConsumed());
+        return builder.stream(ctx.topicName(COMMAND_RESPONSE), Consumed.with(ctx.serdes().aggregateKey(), ctx.serdes().commandResponse()));
     }
 }
 

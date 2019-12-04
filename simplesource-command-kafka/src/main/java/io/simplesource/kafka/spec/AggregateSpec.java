@@ -21,8 +21,6 @@ public final class AggregateSpec<K, C, E, A>  {
     private final String aggregateName;
     private final Serialization<K, C, E, A> serialization;
     private final Generation<K, C, E, A> generation;
-    private final Consumed<K, CommandRequest<K, C>> commandRequestConsumed;
-    private final Consumed<K, CommandResponse<K>> commandResponseConsumed;
     private final Produced<K, ValueWithSequence<E>> eventsConsumedProduced;
     private final Produced<K, AggregateUpdate<A>> aggregatedUpdateProduced;
     private final Produced<K, CommandResponse<K>> commandResponseProduced;
@@ -37,8 +35,6 @@ public final class AggregateSpec<K, C, E, A>  {
 
         val serde = serialization.serdes();
 
-        commandRequestConsumed = Consumed.with(serde.aggregateKey(), serde.commandRequest());
-        commandResponseConsumed = Consumed.with(serde.aggregateKey(), serde.commandResponse());
         eventsConsumedProduced = Produced.with(serde.aggregateKey(), serde.valueWithSequence());
         aggregatedUpdateProduced = Produced.with(serde.aggregateKey(), serde.aggregateUpdate());
         commandResponseProduced = Produced.with(serde.aggregateKey(), serde.commandResponse());
