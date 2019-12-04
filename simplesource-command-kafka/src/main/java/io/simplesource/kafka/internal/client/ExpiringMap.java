@@ -21,16 +21,16 @@ import java.util.function.Supplier;
 final class ExpiringMap<K, V> {
 
     private final ConcurrentHashMap<Long, ConcurrentHashMap<K, V>> outerMap = new ConcurrentHashMap<>();
-    private final Duration retention;
+    private final long retentionInSeconds;
     private final Clock clock;
 
     ExpiringMap(final Duration retention, final Clock clock) {
-        this.retention = retention;
+        this.retentionInSeconds = retention.getSeconds();
         this.clock = clock;
     }
 
     final void insertIfAbsent(final K k, final Supplier<V> lazyV) {
-        final long outerKey = Instant.now(clock).getEpochSecond() / retention.getSeconds();
+        final long outerKey = Instant.now(clock).getEpochSecond() / retentionInSeconds;
         final ConcurrentHashMap<K, V> innerMap = outerMap.computeIfAbsent(outerKey, oKey -> new ConcurrentHashMap<>());
         innerMap.computeIfAbsent(k, ik -> lazyV.get());
     }
@@ -47,7 +47,7 @@ final class ExpiringMap<K, V> {
     final void removeStaleAsync(final Consumer<V> consumeV) {
         if (outerMap.size() < 3) return;
         new Thread(() -> {
-            final long outerKey = Instant.now(clock).getEpochSecond() / retention.getSeconds();
+            final long outerKey = Instant.now(clock).getEpochSecond() / retentionInSeconds;
             removeIf(consumeV, k -> k + 1 < outerKey);
         }).start();
     }
