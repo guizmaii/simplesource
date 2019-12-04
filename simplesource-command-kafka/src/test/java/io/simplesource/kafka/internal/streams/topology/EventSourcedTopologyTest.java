@@ -14,11 +14,7 @@ import io.simplesource.kafka.model.CommandRequest;
 import io.simplesource.kafka.model.CommandResponse;
 import io.simplesource.kafka.model.ValueWithSequence;
 import io.simplesource.kafka.spec.AggregateSpec;
-import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.TopologyTestDriver;
-import org.apache.kafka.streams.kstream.Consumed;
-import org.apache.kafka.streams.kstream.KStream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -223,38 +219,4 @@ class EventSourcedTopologyTest {
         });
     }
 
-    @Test
-    void testDistributor() {
-        String topicNamesTopic = "topic_names";
-        String outputTopic = "output_topic";
-
-        AggregateSpec<String, TestCommand, TestEvent, Optional<TestAggregate>> ctx = ctxBuilder.buildContext();
-        driver = new TestDriverInitializer().build(builder -> {
-            EventSourcedTopology.InputStreams<String, TestCommand> inputStreams = EventSourcedTopology.addTopology(ctx, builder);
-            DistributorContext<CommandId, CommandResponse<String>> context = new DistributorContext<>(
-                    topicNamesTopic,
-                    new DistributorSerdes<>(ctx.serdes().commandId(), ctx.serdes().commandResponse()),
-                    ctx.generation().stateStoreSpec(),
-                    CommandResponse::commandId,
-                    CommandId::id);
-
-            KStream<CommandId, String> topicNames = builder.stream(topicNamesTopic, Consumed.with(ctx.serdes().commandId(), Serdes.String()));
-            ResultDistributor.distribute(context, inputStreams.commandResponse, topicNames);
-        });
-        TestContextDriver<String, TestCommand, TestEvent, Optional<TestAggregate>> ctxDriver = new TestContextDriver<>(ctx, driver);
-
-        CommandRequest<String, TestCommand> commandRequest = CommandRequest.of(
-                CommandId.random(), key, Sequence.first(), new TestCommand.CreateCommand("Name 2"));
-
-        ctxDriver.getPublisher(ctx.serdes().commandId(), Serdes.String())
-                .publish(topicNamesTopic, commandRequest.commandId(), outputTopic);
-        ctxDriver.publishCommand( key, commandRequest);
-
-        ProducerRecord<String, CommandResponse<String>> output = driver.readOutput(outputTopic,
-                Serdes.String().deserializer(),
-                ctx.serdes().commandResponse().deserializer());
-
-        assertThat(output.key()).isEqualTo(String.format("%s:%s", outputTopic, commandRequest.commandId().id().toString()));
-        assertThat(output.value().sequenceResult().isSuccess()).isEqualTo(true);
-    }
 }

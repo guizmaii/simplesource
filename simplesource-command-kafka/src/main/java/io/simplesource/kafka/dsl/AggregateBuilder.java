@@ -1,11 +1,11 @@
 package io.simplesource.kafka.dsl;
 
+import io.simplesource.api.Aggregator;
 import io.simplesource.api.CommandHandler;
+import io.simplesource.api.InitialValue;
 import io.simplesource.api.InvalidSequenceHandler;
 import io.simplesource.kafka.api.AggregateResources.TopicEntity;
-import io.simplesource.api.Aggregator;
 import io.simplesource.kafka.api.AggregateSerdes;
-import io.simplesource.api.InitialValue;
 import io.simplesource.kafka.api.ResourceNamingStrategy;
 import io.simplesource.kafka.internal.streams.InvalidSequenceHandlerProvider;
 import io.simplesource.kafka.spec.AggregateSpec;
@@ -13,7 +13,10 @@ import io.simplesource.kafka.spec.TopicSpec;
 import io.simplesource.kafka.spec.WindowSpec;
 import org.apache.kafka.common.config.TopicConfig;
 
-import java.util.*;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import static java.util.Objects.requireNonNull;
@@ -34,7 +37,7 @@ public final class AggregateBuilder<K, C, E, A> {
     }
 
     private AggregateBuilder() {
-        commandResponseStoreSpec = new WindowSpec(TimeUnit.DAYS.toSeconds(1L));
+        commandResponseStoreSpec = new WindowSpec(Duration.of(1, ChronoUnit.DAYS));
     }
 
     public AggregateBuilder<K, C, E, A> withName(final String name) {
@@ -53,7 +56,7 @@ public final class AggregateBuilder<K, C, E, A> {
     }
 
     public AggregateBuilder<K, C, E, A> withDefaultTopicSpec(final int partitions, final int replication, final int retentionDays) {
-        Map<TopicEntity, TopicSpec> defaultTopicConf = defaultTopicConfig(partitions, replication, retentionDays);
+        final Map<TopicEntity, TopicSpec> defaultTopicConf = defaultTopicConfig(partitions, replication, retentionDays);
         defaultTopicConf.keySet().forEach(topicKey -> topicConfig.putIfAbsent(topicKey, defaultTopicConf.get(topicKey)));
         return this;
     }
@@ -63,7 +66,7 @@ public final class AggregateBuilder<K, C, E, A> {
         return this;
     }
 
-    public AggregateBuilder<K, C, E, A> withCommandResponseRetention(final long retentionInSeconds) {
+    public AggregateBuilder<K, C, E, A> withCommandResponseRetention(final Duration retentionInSeconds) {
         commandResponseStoreSpec = new WindowSpec(retentionInSeconds);
         return this;
     }
@@ -116,9 +119,9 @@ public final class AggregateBuilder<K, C, E, A> {
     }
 
     private Map<TopicEntity, TopicSpec> defaultTopicConfig(final int partitions, final int replication, final int retentionDays) {
-        short replicationShort = (short)replication;
+        final short replicationShort = (short)replication;
         final Map<TopicEntity, TopicSpec> config = new HashMap<>();
-        String retentionMillis = String.valueOf(TimeUnit.DAYS.toMillis(retentionDays));
+        final String retentionMillis = String.valueOf(TimeUnit.DAYS.toMillis(retentionDays));
 
         final Map<String, String> commandRequestTopic = new HashMap<>();
         commandRequestTopic.put(TopicConfig.RETENTION_MS_CONFIG, retentionMillis);

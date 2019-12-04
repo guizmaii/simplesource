@@ -1,6 +1,7 @@
 package io.simplesource.kafka.internal.client;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
@@ -20,42 +21,42 @@ import java.util.function.Supplier;
 final class ExpiringMap<K, V> {
 
     private final ConcurrentHashMap<Long, ConcurrentHashMap<K, V>> outerMap = new ConcurrentHashMap<>();
-    private final long retentionInSeconds;
+    private final Duration retention;
     private final Clock clock;
 
-    ExpiringMap(long retentionInSeconds, Clock clock) {
-        this.retentionInSeconds = retentionInSeconds;
+    ExpiringMap(final Duration retention, final Clock clock) {
+        this.retention = retention;
         this.clock = clock;
     }
 
-    final void insertIfAbsent(K k, Supplier<V> lazyV) {
-        long outerKey = Instant.now(clock).getEpochSecond() / retentionInSeconds;
-        ConcurrentHashMap<K, V> innerMap = outerMap.computeIfAbsent(outerKey, oKey -> new ConcurrentHashMap<>());
+    final void insertIfAbsent(final K k, final Supplier<V> lazyV) {
+        final long outerKey = Instant.now(clock).getEpochSecond() / retention.getSeconds();
+        final ConcurrentHashMap<K, V> innerMap = outerMap.computeIfAbsent(outerKey, oKey -> new ConcurrentHashMap<>());
         innerMap.computeIfAbsent(k, ik -> lazyV.get());
     }
 
-    final V computeIfPresent(K k, Function<V, V> vToV) {
-        for (ConcurrentHashMap<K, V> inner: outerMap.values()) {
-            V newV = inner.computeIfPresent(k, (ik, v) -> vToV.apply(v));
+    final V computeIfPresent(final K k, final Function<V, V> vToV) {
+        for (final ConcurrentHashMap<K, V> inner: outerMap.values()) {
+            final V newV = inner.computeIfPresent(k, (ik, v) -> vToV.apply(v));
             if (newV != null)
                 return newV;
         }
         return null;
     }
 
-    final void removeStaleAsync(Consumer<V> consumeV)  {
+    final void removeStaleAsync(final Consumer<V> consumeV)  {
         if (outerMap.size() < 3) return;
         new Thread(() -> {
-            long outerKey = Instant.now(clock).getEpochSecond() / retentionInSeconds;
+            long outerKey = Instant.now(clock).getEpochSecond() / retention.getSeconds();
             removeIf(consumeV, k -> k + 1 < outerKey);
         }).start();
     }
 
-    final void removeAll(Consumer<V> consumeV)  {
+    final void removeAll(final Consumer<V> consumeV)  {
         removeIf(consumeV, k -> true);
     }
 
-    private void removeIf(Consumer<V> consumeV, Predicate<Long> outerKeyCondition) {
+    private void removeIf(final Consumer<V> consumeV, final Predicate<Long> outerKeyCondition) {
         outerMap.keySet().forEach(k -> {
             if (outerKeyCondition.test(k)) {
                 outerMap.values().forEach(innerMap -> {

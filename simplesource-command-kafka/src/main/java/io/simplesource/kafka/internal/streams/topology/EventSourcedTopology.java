@@ -8,15 +8,14 @@ import io.simplesource.kafka.internal.util.Tuple2;
 import io.simplesource.kafka.model.*;
 import io.simplesource.kafka.spec.AggregateSpec;
 import lombok.Value;
+import lombok.val;
 import org.apache.kafka.common.serialization.Serdes;
+import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsBuilder;
-import org.apache.kafka.streams.kstream.Consumed;
-import org.apache.kafka.streams.kstream.KStream;
-import org.apache.kafka.streams.kstream.KTable;
+import org.apache.kafka.streams.kstream.*;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.function.BiFunction;
 
 public final class EventSourcedTopology {
 
@@ -93,7 +92,13 @@ public final class EventSourcedTopology {
         EventSourcedPublisher.publishCommandResponses(ctx, commandResponses);
 
         // Distribute command results
-        ResultDistributor.distribute(distCtx, commandResponseStream, resultsTopicMapStream);
+        final val joinWindow = JoinWindows.of(distCtx.retention()).until(distCtx.retention().toMillis() * 2 + 1);
+        final val joinWith = Joined.with(distCtx.serdes().uuid(), distCtx.serdes().value(), Serdes.String());
+
+        commandResponseStream.selectKey((k, v) -> distCtx.idMapper.apply(v))
+            .join(resultsTopicMapStream, Tuple2::of, joinWindow, joinWith)
+            .map((uuid, tuple) -> KeyValue.pair(String.format("%s:%s", tuple.v2(), distCtx.keyToUuid.apply(uuid).toString()), tuple.v1()))
+            .to((key, value, context) -> key.substring(0, key.length() - 37), Produced.with(Serdes.String(), distCtx.serdes().value()));
 
         // return input streams
         return new InputStreams<>(commandRequestStream, commandResponseStream);

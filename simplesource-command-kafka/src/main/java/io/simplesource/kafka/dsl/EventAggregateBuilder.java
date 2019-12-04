@@ -3,15 +3,13 @@ package io.simplesource.kafka.dsl;
 import io.simplesource.data.NonEmptyList;
 import io.simplesource.data.Result;
 import io.simplesource.kafka.api.AggregateResources.TopicEntity;
-import io.simplesource.kafka.api.AggregateSerdes;
 import io.simplesource.kafka.api.EventSerdes;
 import io.simplesource.kafka.api.ResourceNamingStrategy;
 import io.simplesource.kafka.spec.AggregateSpec;
 import io.simplesource.kafka.spec.TopicSpec;
 
+import java.time.Duration;
 import java.util.function.Consumer;
-
-import static java.util.Objects.requireNonNull;
 
 public final class EventAggregateBuilder<K, E> {
     private AggregateBuilder<K, E, E, Boolean> builder;
@@ -27,7 +25,7 @@ public final class EventAggregateBuilder<K, E> {
         builder.withAggregator((x, e) -> true);
     }
 
-    private EventAggregateBuilder<K, E> apply(Consumer<AggregateBuilder<K, E, E, Boolean>> applyStep) {
+    private EventAggregateBuilder<K, E> apply(final Consumer<AggregateBuilder<K, E, E, Boolean>> applyStep) {
         applyStep.accept(builder);
         return this;
     }
@@ -52,7 +50,7 @@ public final class EventAggregateBuilder<K, E> {
         return apply(b -> b.withTopicSpec(topicEntity, topicSpec));
     }
 
-    public EventAggregateBuilder<K, E> withCommandResponseRetention(final long retentionInSeconds) {
+    public EventAggregateBuilder<K, E> withCommandResponseRetention(final Duration retentionInSeconds) {
         return apply(b -> b.withCommandResponseRetention(retentionInSeconds));
     }
 

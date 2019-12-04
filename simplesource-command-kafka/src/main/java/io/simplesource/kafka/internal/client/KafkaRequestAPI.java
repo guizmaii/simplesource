@@ -99,16 +99,13 @@ public final class KafkaRequestAPI<K, I, RK, R> {
             final RequestPublisher<K, I> requestSender,
             final RequestPublisher<RK, String> responseTopicMapSender,
             final Function<BiConsumer<RK, R>, ResponseSubscription> responseSubscriber,
-            boolean createTopics) {
-        KafkaConfig kafkaConfig = ctx.kafkaConfig();
-
+            final boolean createTopics) {
         this.ctx = ctx;
-        long retentionInSeconds = ctx.responseWindowSpec().retentionInSeconds();
         this.requestSender = requestSender;
         this.responseTopicMapSender = responseTopicMapSender;
 
         if (createTopics) {
-            AdminClient adminClient = AdminClient.create(kafkaConfig.adminClientConfig());
+            AdminClient adminClient = AdminClient.create(ctx.kafkaConfig().adminClientConfig());
             try {
                 Set<String> topics = adminClient.listTopics().names().get();
                 String privateResponseTopic = ctx.privateResponseTopic();
@@ -122,7 +119,8 @@ public final class KafkaRequestAPI<K, I, RK, R> {
             }
         }
 
-        responseHandlers = new ExpiringMap<>(retentionInSeconds, Clock.systemUTC());
+        responseHandlers = new ExpiringMap<>(ctx.retention(), Clock.systemUTC());
+
         ResponseReceiver<RK, ResponseHandler<I, R>, R> responseReceiver =
             new ResponseReceiver<>(responseHandlers, (h, r) -> {
                 h.forEachFuture(future -> future.complete(r));

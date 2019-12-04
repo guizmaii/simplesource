@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.Value;
 import org.apache.kafka.common.serialization.Serde;
 
+import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.BiFunction;
@@ -29,4 +30,8 @@ public final class RequestAPIContext<K, I, RK, R> {
     final BiFunction<I, Throwable, R> errorValue;
     final Function<UUID, RK> uuidToResponseId;
     final Function<RK, UUID> responseIdToUuid;
+
+    public Duration retention() {
+        return responseWindowSpec.retention();
+    }
 }

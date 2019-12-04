@@ -9,6 +9,8 @@ import org.apache.kafka.common.config.TopicConfig;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -29,7 +31,7 @@ public final class CommandAPIBuilder<K, C> {
 
     private CommandAPIBuilder() {
         outputTopicSpec = defaultTopicConfig(1, 1);
-        commandResponseStoreSpec = new WindowSpec(TimeUnit.DAYS.toSeconds(1L));
+        commandResponseStoreSpec = new WindowSpec(Duration.of(1, ChronoUnit.DAYS));
     }
 
     public CommandAPIBuilder<K, C> withName(final String name) {
@@ -52,7 +54,7 @@ public final class CommandAPIBuilder<K, C> {
         return this;
     }
 
-    public CommandAPIBuilder<K, C> withTopicSpec(int partitions, int replication) {
+    public CommandAPIBuilder<K, C> withTopicSpec(final int partitions, final int replication) {
         this.outputTopicSpec = defaultTopicConfig(partitions, replication);
         return this;
     }
@@ -62,7 +64,7 @@ public final class CommandAPIBuilder<K, C> {
         return this;
     }
 
-    public CommandAPIBuilder<K, C> withCommandResponseRetention(final long retentionInSeconds) {
+    public CommandAPIBuilder<K, C> withCommandResponseRetention(final Duration retentionInSeconds) {
         commandResponseStoreSpec = new WindowSpec(retentionInSeconds);
         return this;
     }
@@ -82,7 +84,7 @@ public final class CommandAPIBuilder<K, C> {
         return new CommandSpec<>(name, clientId, resourceNamingStrategy, commandSerdes, commandResponseStoreSpec, outputTopicSpec);
     }
 
-    private TopicSpec defaultTopicConfig(int partitions, int replication) {
+    private TopicSpec defaultTopicConfig(final int partitions, final int replication) {
         final Map<String, String> commandResponseTopic = new HashMap<>();
         commandResponseTopic.put(TopicConfig.RETENTION_MS_CONFIG, String.valueOf(TimeUnit.DAYS.toMillis(1)));
         return new TopicSpec(partitions, (short)replication, commandResponseTopic);
