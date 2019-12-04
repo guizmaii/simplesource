@@ -4,7 +4,6 @@ import io.simplesource.kafka.api.AggregateResources;
 import io.simplesource.kafka.api.ResourceNamingStrategy;
 import io.simplesource.kafka.dsl.KafkaConfig;
 import io.simplesource.kafka.internal.streams.topology.EventSourcedTopology;
-import io.simplesource.kafka.internal.streams.topology.TopologyContext;
 import io.simplesource.kafka.spec.AggregateSpec;
 import io.simplesource.kafka.spec.TopicSpec;
 import org.apache.kafka.clients.admin.AdminClient;
@@ -101,7 +100,7 @@ public final class EventSourcedStreamsApp {
         final StreamsBuilder builder = new StreamsBuilder();
         aggregateConfigMap
                 .values()
-                .forEach(aggregateSpec -> EventSourcedTopology.addTopology(new TopologyContext<>(aggregateSpec), builder));
+                .forEach((AggregateSpec<?, ?, ?, ?> aggregateSpec) -> EventSourcedTopology.addTopology(aggregateSpec, builder));
         return builder.build();
     }
 

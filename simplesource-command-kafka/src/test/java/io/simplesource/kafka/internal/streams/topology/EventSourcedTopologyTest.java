@@ -13,6 +13,7 @@ import io.simplesource.kafka.internal.streams.model.TestHandlers;
 import io.simplesource.kafka.model.CommandRequest;
 import io.simplesource.kafka.model.CommandResponse;
 import io.simplesource.kafka.model.ValueWithSequence;
+import io.simplesource.kafka.spec.AggregateSpec;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.TopologyTestDriver;
@@ -53,7 +54,7 @@ class EventSourcedTopologyTest {
 
     @Test
     void invalidSequence() {
-        TopologyContext<String, TestCommand, TestEvent, Optional<TestAggregate>> ctx = ctxBuilder.buildContext();
+        AggregateSpec<String, TestCommand, TestEvent, Optional<TestAggregate>> ctx = ctxBuilder.buildContext();
         driver = new TestDriverInitializer().build(builder -> EventSourcedTopology.addTopology(ctx, builder));
 
         TestContextDriver<String, TestCommand, TestEvent, Optional<TestAggregate>> ctxDriver = new TestContextDriver<>(ctx, driver);
@@ -74,7 +75,7 @@ class EventSourcedTopologyTest {
     @Test
     void invalidCommand() {
 
-        TopologyContext<String, TestCommand, TestEvent, Optional<TestAggregate>> ctx = ctxBuilder.buildContext();
+        AggregateSpec<String, TestCommand, TestEvent, Optional<TestAggregate>> ctx = ctxBuilder.buildContext();
         driver = new TestDriverInitializer().build(builder -> EventSourcedTopology.addTopology(ctx, builder));
         TestContextDriver<String, TestCommand, TestEvent, Optional<TestAggregate>> ctxDriver = new TestContextDriver<>(ctx, driver);
 
@@ -94,7 +95,7 @@ class EventSourcedTopologyTest {
     @Test
     void successfulCommandResponse() {
 
-        TopologyContext<String, TestCommand, TestEvent, Optional<TestAggregate>> ctx = ctxBuilder.buildContext();
+        AggregateSpec<String, TestCommand, TestEvent, Optional<TestAggregate>> ctx = ctxBuilder.buildContext();
         driver = new TestDriverInitializer().build(builder -> EventSourcedTopology.addTopology(ctx, builder));
         TestContextDriver<String, TestCommand, TestEvent, Optional<TestAggregate>> ctxDriver = new TestContextDriver<>(ctx, driver);
 
@@ -125,7 +126,7 @@ class EventSourcedTopologyTest {
     @Test
     void testMultipleUpdates() {
 
-        TopologyContext<String, TestCommand, TestEvent, Optional<TestAggregate>> ctx = ctxBuilder.buildContext();
+        AggregateSpec<String, TestCommand, TestEvent, Optional<TestAggregate>> ctx = ctxBuilder.buildContext();
         driver = new TestDriverInitializer().build(builder -> EventSourcedTopology.addTopology(ctx, builder));
         TestContextDriver<String, TestCommand, TestEvent, Optional<TestAggregate>> ctxDriver = new TestContextDriver<>(ctx, driver);
 
@@ -173,7 +174,7 @@ class EventSourcedTopologyTest {
 
     @Test
     void suppressInvalidSequenceCheck() {
-        TopologyContext<String, TestCommand, TestEvent, Optional<TestAggregate>> ctx = ctxBuilder
+        AggregateSpec<String, TestCommand, TestEvent, Optional<TestAggregate>> ctx = ctxBuilder
                 .withInvalidSequenceStrategy(InvalidSequenceStrategy.LastWriteWins)
                 .buildContext();
         driver = new TestDriverInitializer().build(builder -> EventSourcedTopology.addTopology(ctx, builder));
@@ -195,7 +196,7 @@ class EventSourcedTopologyTest {
     
     @Test
     void testIdempotence() {
-        TopologyContext<String, TestCommand, TestEvent, Optional<TestAggregate>> ctx = ctxBuilder.buildContext();
+        AggregateSpec<String, TestCommand, TestEvent, Optional<TestAggregate>> ctx = ctxBuilder.buildContext();
         driver = new TestDriverInitializer().build(builder -> EventSourcedTopology.addTopology(ctx, builder));
         TestContextDriver<String, TestCommand, TestEvent, Optional<TestAggregate>> ctxDriver = new TestContextDriver<>(ctx, driver);
 
@@ -227,13 +228,13 @@ class EventSourcedTopologyTest {
         String topicNamesTopic = "topic_names";
         String outputTopic = "output_topic";
 
-        TopologyContext<String, TestCommand, TestEvent, Optional<TestAggregate>> ctx = ctxBuilder.buildContext();
+        AggregateSpec<String, TestCommand, TestEvent, Optional<TestAggregate>> ctx = ctxBuilder.buildContext();
         driver = new TestDriverInitializer().build(builder -> {
             EventSourcedTopology.InputStreams<String, TestCommand> inputStreams = EventSourcedTopology.addTopology(ctx, builder);
             DistributorContext<CommandId, CommandResponse<String>> context = new DistributorContext<>(
                     topicNamesTopic,
                     new DistributorSerdes<>(ctx.serdes().commandId(), ctx.serdes().commandResponse()),
-                    ctx.aggregateSpec().generation().stateStoreSpec(),
+                    ctx.generation().stateStoreSpec(),
                     CommandResponse::commandId,
                     CommandId::id);
 

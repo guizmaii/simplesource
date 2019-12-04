@@ -67,7 +67,9 @@ public class KafkaConfig {
 
         public Builder() {
             config.put(StreamsConfig.PROCESSING_GUARANTEE_CONFIG, StreamsConfig.EXACTLY_ONCE);
+            config.put(StreamsConfig.COMMIT_INTERVAL_MS_CONFIG, 20);
             config.put(StreamsConfig.STATE_DIR_CONFIG, "/tmp/kafka-streams");
+            config.put(StreamsConfig.TOPOLOGY_OPTIMIZATION, StreamsConfig.OPTIMIZE);
             config.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "snappy");
             config.put(ProducerConfig.LINGER_MS_CONFIG, 0);
         }

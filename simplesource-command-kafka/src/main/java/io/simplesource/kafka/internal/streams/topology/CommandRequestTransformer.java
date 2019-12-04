@@ -19,11 +19,11 @@ import static io.simplesource.data.Result.failure;
 final class CommandRequestTransformer {
     private static final Logger logger = LoggerFactory.getLogger(CommandRequestTransformer.class);
     static <K, C, E, A> CommandEvents<E, A> getCommandEvents(
-            TopologyContext<K, C, E, A> ctx,
+            AggregateSpec<K, C, E, A> ctx,
             final AggregateUpdate<A> currentUpdateInput, final CommandRequest<K, C> request) {
 
         final K readOnlyKey = request.aggregateKey();
-        AggregateSpec.Generation<K, C, E, A> generation = ctx.aggregateSpec().generation();
+        AggregateSpec.Generation<K, C, E, A> generation = ctx.generation();
 
         AggregateUpdate<A> currentUpdatePre;
         try {
@@ -53,7 +53,7 @@ final class CommandRequestTransformer {
                             request.command()));
         } catch (final Exception e) {
             logger.warn("[{} aggregate] Failed to apply command handler on key {} to request {}",
-                    ctx.aggregateSpec().aggregateName(), readOnlyKey, request, e);
+                    ctx.aggregateName(), readOnlyKey, request, e);
             commandResult = failure(CommandError.of(CommandError.Reason.CommandHandlerFailed, e));
         }
         final Result<CommandError, NonEmptyList<ValueWithSequence<E>>> eventsResult = commandResult.map(

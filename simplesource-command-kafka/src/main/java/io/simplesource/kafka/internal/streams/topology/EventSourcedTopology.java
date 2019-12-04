@@ -4,6 +4,7 @@ import io.simplesource.api.CommandId;
 import io.simplesource.kafka.api.AggregateResources;
 import io.simplesource.kafka.internal.util.Tuple2;
 import io.simplesource.kafka.model.*;
+import io.simplesource.kafka.spec.AggregateSpec;
 import lombok.Value;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.kstream.KStream;
@@ -17,7 +18,7 @@ public final class EventSourcedTopology {
         public final KStream<K, CommandResponse<K>> commandResponse;
     }
 
-    public static <K, C, E, A> InputStreams<K, C> addTopology(TopologyContext<K, C, E, A> ctx, final StreamsBuilder builder) {
+    public static <K, C, E, A> InputStreams<K, C> addTopology(AggregateSpec<K, C, E, A> ctx, final StreamsBuilder builder) {
         // Consume from topics
         final KStream<K, CommandRequest<K, C>> commandRequestStream = EventSourcedConsumer.commandRequestStream(ctx, builder);
         final KStream<K, CommandResponse<K>> commandResponseStream = EventSourcedConsumer.commandResponseStream(ctx, builder);
@@ -52,11 +53,11 @@ public final class EventSourcedTopology {
         return new InputStreams<>(commandRequestStream, commandResponseStream);
     }
 
-    private static <K> DistributorContext<CommandId, CommandResponse<K>> getDistributorContext(TopologyContext<K, ?, ?, ?> ctx) {
+    private static <K> DistributorContext<CommandId, CommandResponse<K>> getDistributorContext(AggregateSpec<K, ?, ?, ?> ctx) {
         return new DistributorContext<>(
-                ctx.aggregateSpec().serialization().resourceNamingStrategy().topicName(ctx.aggregateSpec().aggregateName(), AggregateResources.TopicEntity.COMMAND_RESPONSE_TOPIC_MAP.toString()),
+                ctx.serialization().resourceNamingStrategy().topicName(ctx.aggregateName(), AggregateResources.TopicEntity.COMMAND_RESPONSE_TOPIC_MAP.toString()),
                 new DistributorSerdes<>(ctx.serdes().commandId(), ctx.serdes().commandResponse()),
-                ctx.aggregateSpec().generation().stateStoreSpec(),
+                ctx.generation().stateStoreSpec(),
                 CommandResponse::commandId, CommandId::id);
     }
 }

@@ -16,6 +16,7 @@ import io.simplesource.kafka.model.AggregateUpdate;
 import io.simplesource.kafka.model.CommandRequest;
 import io.simplesource.kafka.model.CommandResponse;
 import io.simplesource.kafka.model.ValueWithSequence;
+import io.simplesource.kafka.spec.AggregateSpec;
 import io.simplesource.kafka.spec.TopicSpec;
 import io.simplesource.kafka.util.PrefixResourceNamingStrategy;
 import org.apache.kafka.common.serialization.Serde;
@@ -43,7 +44,7 @@ class TestContextBuilder {
         };
         initialValue = k -> Optional.empty();
     }
-    public TopologyContext<String, TestCommand, TestEvent, Optional<TestAggregate>> buildContext() {
+    public AggregateSpec<String, TestCommand, TestEvent, Optional<TestAggregate>> buildContext() {
         AggregateBuilder<String, TestCommand, TestEvent, Optional<TestAggregate>> aggregateBuilder =
                 AggregateBuilder.<String, TestCommand, TestEvent, Optional<TestAggregate>>newBuilder()
                         .withName(AGGREGATE_NAME)
@@ -56,7 +57,7 @@ class TestContextBuilder {
                         .withResourceNamingStrategy(RESOURCE_NAMING_STRATEGY);
         configureTopicSpec(aggregateBuilder);
 
-        return new TopologyContext<>(aggregateBuilder.build());
+        return aggregateBuilder.build();
     }
 
     public TestContextBuilder withCommandHandler(CommandHandler<String, TestCommand, TestEvent, Optional<TestAggregate>> commandHandler) {

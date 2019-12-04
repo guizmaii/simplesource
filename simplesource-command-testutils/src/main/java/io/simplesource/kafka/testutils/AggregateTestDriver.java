@@ -10,7 +10,6 @@ import io.simplesource.kafka.api.AggregateSerdes;
 import io.simplesource.kafka.dsl.KafkaConfig;
 import io.simplesource.kafka.internal.client.*;
 import io.simplesource.kafka.internal.streams.topology.EventSourcedTopology;
-import io.simplesource.kafka.internal.streams.topology.TopologyContext;
 import io.simplesource.kafka.internal.util.NamedThreadFactory;
 import io.simplesource.kafka.model.AggregateUpdate;
 import io.simplesource.kafka.model.CommandRequest;
@@ -50,11 +49,10 @@ public final class AggregateTestDriver<K, C, E, A> {
             final KafkaConfig kafkaConfig
     ) {
         final StreamsBuilder builder = new StreamsBuilder();
-        final TopologyContext<K, C, E, A> ctx = new TopologyContext<>(aggregateSpec);
         final ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor(
                 new NamedThreadFactory("QueryAPI-scheduler"));
 
-        EventSourcedTopology.addTopology(ctx, builder);
+        EventSourcedTopology.addTopology(aggregateSpec, builder);
 
         this.aggregateSpec = aggregateSpec;
         aggregateSerdes = aggregateSpec.serialization().serdes();

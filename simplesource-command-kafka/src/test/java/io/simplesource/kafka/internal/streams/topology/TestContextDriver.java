@@ -5,6 +5,7 @@ import io.simplesource.kafka.model.AggregateUpdate;
 import io.simplesource.kafka.model.CommandRequest;
 import io.simplesource.kafka.model.CommandResponse;
 import io.simplesource.kafka.model.ValueWithSequence;
+import io.simplesource.kafka.spec.AggregateSpec;
 import lombok.Value;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.Serde;
@@ -19,11 +20,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @Value
 class TestContextDriver<K, C, E, A> {
-    final TopologyContext<K, C, E, A> ctx;
+    final AggregateSpec<K, C, E, A> ctx;
     final TopologyTestDriver driver;
     private TestDriverPublisher<K, CommandRequest<K, C>> commandPublisher;
 
-    TestContextDriver(final TopologyContext<K, C, E, A> ctx, final TopologyTestDriver driver) {
+    TestContextDriver(final AggregateSpec<K, C, E, A> ctx, final TopologyTestDriver driver) {
         this.driver = driver;
         this.ctx = ctx;
         commandPublisher = new TestDriverPublisher<>(driver, ctx.serdes().aggregateKey(), ctx.serdes().commandRequest());

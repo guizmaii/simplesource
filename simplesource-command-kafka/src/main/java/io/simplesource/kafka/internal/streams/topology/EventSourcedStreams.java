@@ -5,6 +5,7 @@ import io.simplesource.api.CommandId;
 import io.simplesource.data.Result;
 import io.simplesource.kafka.internal.util.Tuple2;
 import io.simplesource.kafka.model.*;
+import io.simplesource.kafka.spec.AggregateSpec;
 import org.apache.kafka.streams.kstream.*;
 
 import java.util.ArrayList;
@@ -17,7 +18,7 @@ final class EventSourcedStreams {
     }
 
     static <K, C, E, A> Tuple2<KStream<K, CommandRequest<K, C>>, KStream<K, CommandResponse<K>>> getProcessedCommands(
-            TopologyContext<K, C, E, A> ctx,
+            AggregateSpec<K, C, E, A> ctx,
             final KStream<K, CommandRequest<K, C>> commandRequestStream,
             final KStream<K, CommandResponse<K>> commandResponseStream) {
 
@@ -42,7 +43,7 @@ final class EventSourcedStreams {
     }
 
     static <K, C, E, A> KStream<K, CommandEvents<E, A>> getCommandEvents(
-            TopologyContext<K, C, E, A> ctx,
+            AggregateSpec<K, C, E, A> ctx,
             final KStream<K, CommandRequest<K, C>> commandRequestStream,
             final KTable<K, AggregateUpdate<A>> aggregateTable) {
         return commandRequestStream.leftJoin(aggregateTable, (r, a) -> CommandRequestTransformer.getCommandEvents(ctx, a, r), ctx.commandRequestAggregateUpdateJoined());
@@ -53,7 +54,7 @@ final class EventSourcedStreams {
     }
 
     static <K, E, A> KStream<K, AggregateUpdateResult<A>> getAggregateUpdateResults(
-            TopologyContext<K, ?, E, A> ctx,
+            AggregateSpec<K, ?, E, A> ctx,
             final KStream<K, CommandEvents<E, A>> eventResultStream) {
         return eventResultStream
                 .mapValues((serializedKey, result) -> {
