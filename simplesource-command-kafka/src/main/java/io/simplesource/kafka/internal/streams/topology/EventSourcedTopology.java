@@ -35,11 +35,22 @@ public final class EventSourcedTopology {
             builder.stream(ctx.topicName(COMMAND_RESPONSE_TOPIC_MAP), Consumed.with(ctx.serdes().commandId(), Serdes.String()));
 
         // Handle idempotence by splitting stream into processed and unprocessed
-        final Tuple2<KStream<K, CommandRequest<K, C>>, KStream<K, CommandResponse<K>>> reqResp =
-            processedCommands(ctx, commandRequestStream, commandResponseStream);
 
-        final KStream<K, CommandRequest<K, C>> unprocessedRequests = reqResp.v1();
-        final KStream<K, CommandResponse<K>> processedResponses = reqResp.v2();
+        final KTable<CommandId, CommandResponse<K>> commandResponseById =
+            commandResponseStream
+                .selectKey((key, response) -> response.commandId())
+                .groupByKey(ctx.serializedCommandResponse())
+                .reduce((r1, r2) -> responseSequence(r1) > responseSequence(r2) ? r1 : r2);
+
+        final KStream<K, Tuple2<CommandRequest<K, C>, CommandResponse<K>>>[] branches =
+            commandRequestStream
+                .selectKey((k, v) -> v.commandId())
+                .leftJoin(commandResponseById, Tuple2::new, ctx.commandRequestResponseJoined())
+                .selectKey((k, v) -> v.v1().aggregateKey())
+                .branch((k, tuple) -> tuple.v2() == null, (k, tuple) -> tuple.v2() != null);
+
+        final KStream<K, CommandRequest<K, C>> unprocessedRequests = branches[0].mapValues((k, tuple) -> tuple.v1());
+        final KStream<K, CommandResponse<K>> processedResponses = branches[1].mapValues((k, tuple) -> tuple.v2());
 
         // Transformations
         final KStream<K, CommandEvents<E, A>> commandEvents =
@@ -94,34 +105,6 @@ public final class EventSourcedTopology {
             .join(resultsTopicMapStream, Tuple2::of, joinWindow, joinWith)
             .map((commandId, tuple) -> KeyValue.pair(String.format("%s:%s", tuple.v2(), commandId.id.toString()), tuple.v1()))
             .to((key, value, context) -> key.substring(0, key.length() - 37), Produced.with(Serdes.String(), ctx.serdes().commandResponse()));
-    }
-
-    private static <K, C, E, A> Tuple2<KStream<K, CommandRequest<K, C>>, KStream<K, CommandResponse<K>>> processedCommands(
-        final AggregateSpec<K, C, E, A> ctx,
-        final KStream<K, CommandRequest<K, C>> commandRequestStream,
-        final KStream<K, CommandResponse<K>> commandResponseStream
-    ) {
-
-        final KTable<CommandId, CommandResponse<K>> commandResponseById =
-            commandResponseStream
-                .selectKey((key, response) -> response.commandId())
-                .groupByKey(ctx.serializedCommandResponse())
-                .reduce((r1, r2) -> responseSequence(r1) > responseSequence(r2) ? r1 : r2);
-
-        final KStream<K, Tuple2<CommandRequest<K, C>, CommandResponse<K>>> reqResp =
-            commandRequestStream
-                .selectKey((k, v) -> v.commandId())
-                .leftJoin(commandResponseById, Tuple2::new, ctx.commandRequestResponseJoined())
-                .selectKey((k, v) -> v.v1().aggregateKey());
-
-        final KStream<K, Tuple2<CommandRequest<K, C>, CommandResponse<K>>>[] branches =
-            reqResp.branch((k, tuple) -> tuple.v2() == null, (k, tuple) -> tuple.v2() != null);
-
-        final KStream<K, CommandRequest<K, C>> unProcessed = branches[0].mapValues((k, tuple) -> tuple.v1());
-
-        final KStream<K, CommandResponse<K>> processed = branches[1].mapValues((k, tuple) -> tuple.v2());
-
-        return new Tuple2<>(unProcessed, processed);
     }
 
     private static <K> long responseSequence(final CommandResponse<K> response) {
