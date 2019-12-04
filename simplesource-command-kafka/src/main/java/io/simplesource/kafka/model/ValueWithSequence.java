@@ -10,7 +10,7 @@ public final class ValueWithSequence<V> {
     private final V value;
     private final Sequence sequence;
 
-    public static <V> ValueWithSequence<V> of(V a) {
+    public static <V> ValueWithSequence<V> of(final V a) {
         return new ValueWithSequence<>(a, Sequence.first());
     }
 
