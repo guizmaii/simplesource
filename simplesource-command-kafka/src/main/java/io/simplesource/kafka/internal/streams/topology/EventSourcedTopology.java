@@ -58,7 +58,9 @@ public final class EventSourcedTopology {
                 ctx.topicName(AggregateResources.TopicEntity.COMMAND_RESPONSE_TOPIC_MAP),
                 new DistributorSerdes<>(ctx.serdes().commandId(), ctx.serdes().commandResponse()),
                 ctx.generation().stateStoreSpec(),
-                CommandResponse::commandId, CommandId::id);
+                CommandResponse::commandId,
+                CommandId::id
+        );
     }
 }
 
