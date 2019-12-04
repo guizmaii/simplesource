@@ -1,6 +1,8 @@
 package io.simplesource.kafka.internal.streams.topology;
 
+import io.simplesource.api.CommandError;
 import io.simplesource.api.CommandId;
+import io.simplesource.data.Result;
 import io.simplesource.kafka.api.AggregateResources;
 import io.simplesource.kafka.internal.util.Tuple2;
 import io.simplesource.kafka.model.*;
@@ -12,6 +14,10 @@ import org.apache.kafka.streams.kstream.Consumed;
 import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.KTable;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.function.BiFunction;
+
 public final class EventSourcedTopology {
 
     @Value
@@ -20,7 +26,7 @@ public final class EventSourcedTopology {
         public final KStream<K, CommandResponse<K>> commandResponse;
     }
 
-    public static <K, C, E, A> InputStreams<K, C> addTopology(AggregateSpec<K, C, E, A> ctx, final StreamsBuilder builder) {
+    public static <K, C, E, A> InputStreams<K, C> addTopology(final AggregateSpec<K, C, E, A> ctx, final StreamsBuilder builder) {
         // Consume from topics
         final KStream<K, CommandRequest<K, C>> commandRequestStream = EventSourcedConsumer.commandRequestStream(ctx, builder);
         final KStream<K, CommandResponse<K>> commandResponseStream = EventSourcedConsumer.commandResponseStream(ctx, builder);
@@ -36,19 +42,19 @@ public final class EventSourcedTopology {
         final KStream<CommandId, String> resultsTopicMapStream = builder.stream(distCtx.topicNameMapTopic, Consumed.with(distCtx.serdes().uuid(), Serdes.String()));
 
         // Handle idempotence by splitting stream into processed and unprocessed
-        Tuple2<KStream<K, CommandRequest<K, C>>, KStream<K, CommandResponse<K>>> reqResp =
+        final Tuple2<KStream<K, CommandRequest<K, C>>, KStream<K, CommandResponse<K>>> reqResp =
                 processedCommands(ctx, commandRequestStream, commandResponseStream);
 
         final KStream<K, CommandRequest<K, C>> unprocessedRequests = reqResp.v1();
         final KStream<K, CommandResponse<K>> processedResponses = reqResp.v2();
         
         // Transformations
-        final KStream<K, CommandEvents<E, A>> commandEvents = EventSourcedStreams.getCommandEvents(ctx, unprocessedRequests, aggregateTable);
-        final KStream<K, ValueWithSequence<E>> eventsWithSequence = EventSourcedStreams.getEventsWithSequence(commandEvents);
+        final KStream<K, CommandEvents<E, A>> commandEvents = commandEvents(ctx, unprocessedRequests, aggregateTable);
+        final KStream<K, ValueWithSequence<E>> eventsWithSequence = eventsWithSequence(commandEvents);
 
-        final KStream<K, AggregateUpdateResult<A>> aggregateUpdateResults = EventSourcedStreams.getAggregateUpdateResults(ctx, commandEvents);
-        final KStream<K, AggregateUpdate<A>> aggregateUpdates = EventSourcedStreams.getAggregateUpdates(aggregateUpdateResults);
-        final KStream<K, CommandResponse<K>>commandResponses = EventSourcedStreams.getCommandResponses(aggregateUpdateResults);
+        final KStream<K, AggregateUpdateResult<A>> aggregateUpdateResults = aggregateUpdateResults(ctx, commandEvents);
+        final KStream<K, AggregateUpdate<A>> aggregateUpdates = aggregateUpdates(aggregateUpdateResults);
+        final KStream<K, CommandResponse<K>>commandResponses = commandResponses(aggregateUpdateResults);
 
         // Produce to topics
         EventSourcedPublisher.publishEvents(ctx, eventsWithSequence);
@@ -65,7 +71,7 @@ public final class EventSourcedTopology {
 
 
     private static  <K, C, E, A> Tuple2<KStream<K, CommandRequest<K, C>>, KStream<K, CommandResponse<K>>> processedCommands(
-            AggregateSpec<K, C, E, A> ctx,
+            final AggregateSpec<K, C, E, A> ctx,
             final KStream<K, CommandRequest<K, C>> commandRequestStream,
             final KStream<K, CommandResponse<K>> commandResponseStream) {
 
@@ -79,18 +85,70 @@ public final class EventSourcedTopology {
                 .leftJoin(commandResponseById, Tuple2::new, ctx.commandRequestResponseJoined())
                 .selectKey((k, v) -> v.v1().aggregateKey());
 
-        KStream<K, Tuple2<CommandRequest<K, C>, CommandResponse<K>>>[] branches =
+        final KStream<K, Tuple2<CommandRequest<K, C>, CommandResponse<K>>>[] branches =
                 reqResp.branch((k, tuple) -> tuple.v2() == null, (k, tuple) -> tuple.v2() != null);
 
-        KStream<K, CommandRequest<K, C>> unProcessed = branches[0].mapValues((k, tuple) -> tuple.v1());
+        final KStream<K, CommandRequest<K, C>> unProcessed = branches[0].mapValues((k, tuple) -> tuple.v1());
 
-        KStream<K, CommandResponse<K>> processed = branches[1].mapValues((k, tuple) -> tuple.v2());
+        final KStream<K, CommandResponse<K>> processed = branches[1].mapValues((k, tuple) -> tuple.v2());
 
         return new Tuple2<>(unProcessed, processed);
     }
 
-    private static <K> long responseSequence(CommandResponse<K> response) {
+    private static <K> long responseSequence(final CommandResponse<K> response) {
         return response.sequenceResult().getOrElse(response.readSequence()).getSeq();
+    }
+
+    private static <K, C, E, A> KStream<K, CommandEvents<E, A>> commandEvents(
+            final AggregateSpec<K, C, E, A> ctx,
+            final KStream<K, CommandRequest<K, C>> commandRequestStream,
+            final KTable<K, AggregateUpdate<A>> aggregateTable) {
+        return commandRequestStream.leftJoin(aggregateTable, (r, a) -> CommandRequestTransformer.getCommandEvents(ctx, a, r), ctx.commandRequestAggregateUpdateJoined());
+    }
+
+    private static <K, E, A> KStream<K, ValueWithSequence<E>> eventsWithSequence(final KStream<K, CommandEvents<E, A>> eventResultStream) {
+        return eventResultStream.flatMapValues(result -> result.eventValue().fold(reasons -> Collections.emptyList(), ArrayList::new));
+    }
+
+    private static <K, E, A> KStream<K, AggregateUpdateResult<A>> aggregateUpdateResults(
+            final AggregateSpec<K, ?, E, A> ctx,
+            final KStream<K, CommandEvents<E, A>> eventResultStream) {
+        return eventResultStream
+                .mapValues((serializedKey, result) -> {
+                    final Result<CommandError, AggregateUpdate<A>> aggregateUpdateResult = result.eventValue().map(events -> {
+                        final BiFunction<AggregateUpdate<A>, ValueWithSequence<E>, AggregateUpdate<A>> reducer =
+                                (aggregateUpdate, eventWithSequence) -> new AggregateUpdate<>(
+                                        ctx.aggregator().applyEvent(aggregateUpdate.aggregate(), eventWithSequence.value()),
+                                        eventWithSequence.sequence()
+                                );
+                        return events.fold(
+                                eventWithSequence -> new AggregateUpdate<>(
+                                        ctx.aggregator().applyEvent(result.aggregate(), eventWithSequence.value()),
+                                        eventWithSequence.sequence()
+                                ),
+                                reducer
+                        );
+                    });
+                    return new AggregateUpdateResult<>(
+                            result.commandId(),
+                            result.readSequence(),
+                            aggregateUpdateResult);
+                });
+    }
+
+    private static <K, A> KStream<K, AggregateUpdate<A>> aggregateUpdates(final KStream<K, AggregateUpdateResult<A>> aggregateUpdateStream) {
+        return aggregateUpdateStream
+                .flatMapValues(update -> update.updatedAggregateResult().fold(
+                        reasons -> Collections.emptyList(),
+                        Collections::singletonList
+                ));
+    }
+
+    private static <K, A>  KStream<K, CommandResponse<K>> commandResponses(final KStream<K, AggregateUpdateResult<A>> aggregateUpdateStream) {
+        return aggregateUpdateStream
+                .mapValues((key, update) ->
+                        CommandResponse.of(update.commandId(), key, update.readSequence(), update.updatedAggregateResult().map(AggregateUpdate::sequence))
+                );
     }
 
 }
