@@ -46,15 +46,13 @@ public final class EventSourcedTopology {
                 .reduce(EventSourcedTopology::keepLatest);
 
         final val requestCommandResponseJoined = Joined.with(ctx.serdes().commandId(), ctx.serdes().commandRequest(), ctx.serdes().commandResponse());
-        final KStream<K, Tuple2<CommandRequest<K, C>, CommandResponse<K>>>[] branches =
+        final KStream<K, CommandRequest<K, C>> unprocessedRequests =
             commandRequestStream
                 .selectKey((k, v) -> v.commandId())
                 .leftJoin(commandResponseById, Tuple2::new, requestCommandResponseJoined)
-                .selectKey((k, v) -> v.v1().aggregateKey())
-                .branch(EventSourcedTopology::hasNoResponse, EventSourcedTopology::hasResponse);
-
-        final KStream<K, CommandRequest<K, C>> unprocessedRequests = branches[0].mapValues((k, tuple) -> tuple.v1());
-        final KStream<K, CommandResponse<K>> processedResponses = branches[1].mapValues((k, tuple) -> tuple.v2());
+                .filter(EventSourcedTopology::hasNoResponse)
+                .mapValues(Tuple2::v1)
+                .selectKey((k, v) -> v.aggregateKey());
 
         // Transformations
         final val commandRequestAggregateUpdateJoined = Joined.with(ctx.serdes().aggregateKey(), ctx.serdes().commandRequest(), ctx.serdes().aggregateUpdate());
@@ -98,7 +96,6 @@ public final class EventSourcedTopology {
         // Produce to topics
         eventsWithSequence.to(ctx.topicName(EVENT), Produced.with(ctx.serdes().aggregateKey(), ctx.serdes().valueWithSequence()));
         aggregateUpdates.to(ctx.topicName(AGGREGATE), Produced.with(ctx.serdes().aggregateKey(), ctx.serdes().aggregateUpdate()));
-        processedResponses.to(ctx.topicName(COMMAND_RESPONSE), Produced.with(ctx.serdes().aggregateKey(), ctx.serdes().commandResponse()));
         commandResponses.to(ctx.topicName(COMMAND_RESPONSE), Produced.with(ctx.serdes().aggregateKey(), ctx.serdes().commandResponse()));
 
         // Distribute command results
@@ -119,11 +116,7 @@ public final class EventSourcedTopology {
         return response.sequenceResult().getOrElse(response.readSequence()).getSeq();
     }
 
-    private static <K, C> boolean hasResponse(final K ignored, final Tuple2<CommandRequest<K, C>, CommandResponse<K>> tuple) {
-        return tuple.v2() != null;
-    }
-
-    private static <K, C> boolean hasNoResponse(final K ignored, final Tuple2<CommandRequest<K, C>, CommandResponse<K>> tuple) {
+    private static <K, C> boolean hasNoResponse(final CommandId ignored, final Tuple2<CommandRequest<K, C>, CommandResponse<K>> tuple) {
         return tuple.v2() == null;
     }
 
