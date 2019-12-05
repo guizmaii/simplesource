@@ -4,6 +4,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -44,12 +45,12 @@ final class ExpiringMap<K, V> {
         return null;
     }
 
-    final void removeStaleAsync(final Consumer<V> consumeV) {
+    final void removeStaleAsync(final ExecutorService executor, final Consumer<V> consumeV) {
         if (outerMap.size() < 3) return;
-        new Thread(() -> {
+        executor.submit(() -> {
             final long outerKey = Instant.now(clock).getEpochSecond() / retentionInSeconds;
             removeIf(consumeV, k -> k + 1 < outerKey);
-        }).start();
+        });
     }
 
     final void removeAll(final Consumer<V> consumeV)  {

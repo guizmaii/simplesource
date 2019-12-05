@@ -60,46 +60,46 @@ public final class KafkaRequestAPI<K, I, RK, R> {
     private final RequestPublisher<RK, String> responseTopicMapSender;
 
     private static <K, V> RequestPublisher<K, V> kakfaProducerSender(
-            KafkaConfig kafkaConfig,
-            String topicName,
-            Serde<K> keySerde,
-            Serde<V> valueSerde) {
+        KafkaConfig kafkaConfig,
+        String topicName,
+        Serde<K> keySerde,
+        Serde<V> valueSerde) {
         KafkaProducer<K, V> producer = new KafkaProducer<>(
-                kafkaConfig.producerConfig(),
-                keySerde.serializer(),
-                valueSerde.serializer());
+            kafkaConfig.producerConfig(),
+            keySerde.serializer(),
+            valueSerde.serializer());
         return (key, value) -> {
             final ProducerRecord<K, V> record = new ProducerRecord<>(
-                    topicName,
-                    key,
-                    value);
+                topicName,
+                key,
+                value);
             return FutureResult.ofFuture(producer.send(record), e -> {
-                        logger.error("Error returned from future", e);
-                        return e;
-                    })
-                    .map(meta -> new RequestPublisher.PublishResult(meta.timestamp()));
+                logger.error("Error returned from future", e);
+                return e;
+            })
+                .map(meta -> new RequestPublisher.PublishResult(meta.timestamp()));
         };
     }
 
     public KafkaRequestAPI(final RequestAPIContext<K, I, RK, R> ctx) {
         this(ctx,
-                kakfaProducerSender(ctx.kafkaConfig(), ctx.requestTopic(), ctx.requestKeySerde(), ctx.requestValueSerde()),
-                kakfaProducerSender(ctx.kafkaConfig(), ctx.responseTopicMapTopic(), ctx.responseKeySerde(), Serdes.String()),
-                receiver -> KafkaConsumerRunner.run(
-                    ctx.kafkaConfig().consumerConfig(),
-                    ctx.privateResponseTopic(),
-                    ctx.responseValueSerde(),
-                    receiver,
-                    ctx.uuidToResponseId()),
-                true);
+            kakfaProducerSender(ctx.kafkaConfig(), ctx.requestTopic(), ctx.requestKeySerde(), ctx.requestValueSerde()),
+            kakfaProducerSender(ctx.kafkaConfig(), ctx.responseTopicMapTopic(), ctx.responseKeySerde(), Serdes.String()),
+            receiver -> KafkaConsumerRunner.run(
+                ctx.kafkaConfig().consumerConfig(),
+                ctx.privateResponseTopic(),
+                ctx.responseValueSerde(),
+                receiver,
+                ctx.uuidToResponseId()),
+            true);
     }
 
     public KafkaRequestAPI(
-            final RequestAPIContext<K, I, RK, R> ctx,
-            final RequestPublisher<K, I> requestSender,
-            final RequestPublisher<RK, String> responseTopicMapSender,
-            final Function<BiConsumer<RK, R>, ResponseSubscription> responseSubscriber,
-            final boolean createTopics) {
+        final RequestAPIContext<K, I, RK, R> ctx,
+        final RequestPublisher<K, I> requestSender,
+        final RequestPublisher<RK, String> responseTopicMapSender,
+        final Function<BiConsumer<RK, R>, ResponseSubscription> responseSubscriber,
+        final boolean createTopics) {
         this.ctx = ctx;
         this.requestSender = requestSender;
         this.responseTopicMapSender = responseTopicMapSender;
@@ -135,14 +135,14 @@ public final class KafkaRequestAPI<K, I, RK, R> {
     public FutureResult<Exception, RequestPublisher.PublishResult> publishRequest(final K key, RK requestId, final I request) {
 
         FutureResult<Exception, RequestPublisher.PublishResult> result = responseTopicMapSender.publish(requestId, ctx.privateResponseTopic())
-                .flatMap(r -> requestSender.publish(key, request)).map(r -> {
-                    responseHandlers.insertIfAbsent(requestId, () -> ResponseHandler.initialise(request, Optional.empty()));
-                    return r;
-                });
+            .flatMap(r -> requestSender.publish(key, request)).map(r -> {
+                responseHandlers.insertIfAbsent(requestId, () -> ResponseHandler.initialise(request, Optional.empty()));
+                return r;
+            });
 
-        responseHandlers.removeStaleAsync(h ->
-                h.forEachFuture(f ->
-                        f.complete(ctx.errorValue().apply(h.input, new Exception("Request not processed.")))));
+        responseHandlers.removeStaleAsync(ctx.scheduler(), h ->
+            h.forEachFuture(f ->
+                f.complete(ctx.errorValue().apply(h.input, new Exception("Request not processed.")))));
 
         return result;
     }
@@ -172,8 +172,8 @@ public final class KafkaRequestAPI<K, I, RK, R> {
     public void close() {
         logger.info("Request API shutting down");
         responseHandlers.removeAll(h ->
-                h.forEachFuture(future ->
-                        future.complete(ctx.errorValue().apply(h.input, new Exception("Consumer closed before future.")))));
+            h.forEachFuture(future ->
+                future.complete(ctx.errorValue().apply(h.input, new Exception("Consumer closed before future.")))));
 
         this.responseSubscription.close();
     }
