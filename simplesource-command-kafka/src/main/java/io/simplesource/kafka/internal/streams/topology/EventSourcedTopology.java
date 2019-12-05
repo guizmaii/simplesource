@@ -107,7 +107,7 @@ public final class EventSourcedTopology {
 
         commandResponseStream
             .join(resultsTopicMapStream, Tuple2::new, joinWindow, joinWith)
-            .map((commandId, tuple) -> KeyValue.pair(String.format("%s:%s", tuple.v2(), commandId.id.toString()), tuple.v1()))
+            .map((CommandId commandId, Tuple2<CommandResponse<K>, String> tuple) -> KeyValue.pair(String.format("%s:%s", tuple.v2(), commandId.id.toString()), tuple.v1()))
             .to((key, value, context) -> key.substring(0, key.length() - 37), Produced.with(Serdes.String(), ctx.serdes().commandResponse()));
     }
 
