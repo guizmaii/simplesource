@@ -16,7 +16,6 @@ import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.kstream.*;
 
-import java.util.ArrayList;
 import java.util.Collections;
 
 import static io.simplesource.kafka.api.AggregateResources.TopicEntity.*;
@@ -85,7 +84,7 @@ public final class EventSourcedTopology {
 
         final KStream<K, AggregateUpdate<A>> aggregateUpdates =
             aggregateUpdateResults
-                .flatMapValues(update ->
+                .flatMapValues((AggregateUpdateResult<A> update) ->
                     update.updatedAggregateResult().fold(reasons -> Collections.emptyList(), Collections::singletonList)
                 );
 
@@ -96,10 +95,10 @@ public final class EventSourcedTopology {
                 );
 
         // Produce to topics
-        EventSourcedPublisher.publishEvents(ctx, eventsWithSequence);
-        EventSourcedPublisher.publishAggregateUpdates(ctx, aggregateUpdates);
-        EventSourcedPublisher.publishCommandResponses(ctx, processedResponses);
-        EventSourcedPublisher.publishCommandResponses(ctx, commandResponses);
+        eventsWithSequence.to(ctx.topicName(EVENT), Produced.with(ctx.serdes().aggregateKey(), ctx.serdes().valueWithSequence()));
+        aggregateUpdates.to(ctx.topicName(AGGREGATE), Produced.with(ctx.serdes().aggregateKey(), ctx.serdes().aggregateUpdate()));
+        processedResponses.to(ctx.topicName(COMMAND_RESPONSE), Produced.with(ctx.serdes().aggregateKey(), ctx.serdes().commandResponse()));
+        commandResponses.to(ctx.topicName(COMMAND_RESPONSE), Produced.with(ctx.serdes().aggregateKey(), ctx.serdes().commandResponse()));
 
         // Distribute command results
         final val joinWindow = JoinWindows.of(ctx.retention()).until(ctx.retention().toMillis() * 2 + 1);
