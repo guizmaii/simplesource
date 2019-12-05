@@ -66,8 +66,8 @@ public final class AggregateBuilder<K, C, E, A> {
         return this;
     }
 
-    public AggregateBuilder<K, C, E, A> withCommandResponseRetention(final Duration retentionInSeconds) {
-        commandResponseStoreSpec = new WindowSpec(retentionInSeconds);
+    public AggregateBuilder<K, C, E, A> withCommandResponseRetention(final Duration retention) {
+        commandResponseStoreSpec = new WindowSpec(retention);
         return this;
     }
 

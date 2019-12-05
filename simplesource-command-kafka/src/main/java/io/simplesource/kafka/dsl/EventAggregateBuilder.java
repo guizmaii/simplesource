@@ -50,8 +50,8 @@ public final class EventAggregateBuilder<K, E> {
         return apply(b -> b.withTopicSpec(topicEntity, topicSpec));
     }
 
-    public EventAggregateBuilder<K, E> withCommandResponseRetention(final Duration retentionInSeconds) {
-        return apply(b -> b.withCommandResponseRetention(retentionInSeconds));
+    public EventAggregateBuilder<K, E> withCommandResponseRetention(final Duration retention) {
+        return apply(b -> b.withCommandResponseRetention(retention));
     }
 
     public EventAggregateBuilder<K, E> withInvalidSequenceStrategy(final InvalidSequenceStrategy invalidSequenceStrategy) {

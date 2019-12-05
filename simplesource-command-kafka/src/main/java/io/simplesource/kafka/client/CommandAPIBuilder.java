@@ -64,8 +64,8 @@ public final class CommandAPIBuilder<K, C> {
         return this;
     }
 
-    public CommandAPIBuilder<K, C> withCommandResponseRetention(final Duration retentionInSeconds) {
-        commandResponseStoreSpec = new WindowSpec(retentionInSeconds);
+    public CommandAPIBuilder<K, C> withCommandResponseRetention(final Duration retention) {
+        commandResponseStoreSpec = new WindowSpec(retention);
         return this;
     }
 
