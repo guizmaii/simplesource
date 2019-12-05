@@ -27,8 +27,10 @@ public final class EventSourcedTopology {
         final KStream<K, CommandRequest<K, C>> commandRequestStream =
             builder.stream(ctx.topicName(COMMAND_REQUEST), Consumed.with(ctx.serdes().aggregateKey(), ctx.serdes().commandRequest()));
 
-        final KStream<K, CommandResponse<K>> commandResponseStream =
-            builder.stream(ctx.topicName(COMMAND_RESPONSE), Consumed.with(ctx.serdes().aggregateKey(), ctx.serdes().commandResponse()));
+        final KStream<CommandId, CommandResponse<K>> commandResponseStream =
+            builder
+                .stream(ctx.topicName(COMMAND_RESPONSE), Consumed.with(ctx.serdes().aggregateKey(), ctx.serdes().commandResponse()))
+                .selectKey((key, response) -> response.commandId());
 
         final KTable<K, AggregateUpdate<A>> aggregateTable =
             builder.table(ctx.topicName(AGGREGATE), Consumed.with(ctx.serdes().aggregateKey(), ctx.serdes().aggregateUpdate()));
@@ -40,7 +42,6 @@ public final class EventSourcedTopology {
 
         final KTable<CommandId, CommandResponse<K>> commandResponseById =
             commandResponseStream
-                .selectKey((key, response) -> response.commandId())
                 .groupByKey(Grouped.with(ctx.serdes().commandId(), ctx.serdes().commandResponse()))
                 .reduce(EventSourcedTopology::keepLatest);
 
@@ -105,7 +106,6 @@ public final class EventSourcedTopology {
         final val joinWith = Joined.with(ctx.serdes().commandId(), ctx.serdes().commandResponse(), Serdes.String());
 
         commandResponseStream
-            .selectKey((k, v) -> v.commandId())
             .join(resultsTopicMapStream, Tuple2::new, joinWindow, joinWith)
             .map((commandId, tuple) -> KeyValue.pair(String.format("%s:%s", tuple.v2(), commandId.id.toString()), tuple.v1()))
             .to((key, value, context) -> key.substring(0, key.length() - 37), Produced.with(Serdes.String(), ctx.serdes().commandResponse()));
