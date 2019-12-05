@@ -35,7 +35,7 @@ public final class EventSourcedTopology {
         final KTable<K, AggregateUpdate<A>> aggregateTable =
             builder.table(ctx.topicName(AGGREGATE), Consumed.with(ctx.serdes().aggregateKey(), ctx.serdes().aggregateUpdate()));
 
-        final KStream<CommandId, String> resultsTopicMapStream =
+        final KStream<CommandId, String> commandResponseTopicMapStream =
             builder.stream(ctx.topicName(COMMAND_RESPONSE_TOPIC_MAP), Consumed.with(ctx.serdes().commandId(), Serdes.String()));
 
         // Handle idempotence by splitting stream into processed and unprocessed
@@ -106,7 +106,7 @@ public final class EventSourcedTopology {
         final val joinWith = Joined.with(ctx.serdes().commandId(), ctx.serdes().commandResponse(), Serdes.String());
 
         commandResponseStream
-            .join(resultsTopicMapStream, Tuple2::new, joinWindow, joinWith)
+            .join(commandResponseTopicMapStream, Tuple2::new, joinWindow, joinWith)
             .map((CommandId commandId, Tuple2<CommandResponse<K>, String> tuple) -> KeyValue.pair(String.format("%s:%s", tuple.v2(), commandId.id.toString()), tuple.v1()))
             .to((key, value, context) -> key.substring(0, key.length() - 37), Produced.with(Serdes.String(), ctx.serdes().commandResponse()));
     }

@@ -1,5 +1,6 @@
 package io.simplesource.kafka.spec;
 
+import io.simplesource.kafka.api.AggregateResources;
 import io.simplesource.kafka.api.CommandSerdes;
 import io.simplesource.kafka.api.ResourceNamingStrategy;
 import lombok.Value;
@@ -12,4 +13,8 @@ public final class CommandSpec<K, C> {
     private final CommandSerdes<K, C> serdes;
     private final WindowSpec commandResponseWindowSpec;
     private final TopicSpec outputTopicConfig;
+
+    public String topicName(AggregateResources.TopicEntity topicEntity) {
+        return resourceNamingStrategy.topicName(aggregateName, topicEntity.name());
+    }
 }
