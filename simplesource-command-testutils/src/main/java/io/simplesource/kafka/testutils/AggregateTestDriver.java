@@ -8,15 +8,19 @@ import io.simplesource.data.Sequence;
 import io.simplesource.kafka.api.AggregateResources;
 import io.simplesource.kafka.api.AggregateSerdes;
 import io.simplesource.kafka.dsl.KafkaConfig;
-import io.simplesource.kafka.internal.client.*;
+import io.simplesource.kafka.internal.client.KafkaCommandAPI;
+import io.simplesource.kafka.internal.client.RequestAPIContext;
+import io.simplesource.kafka.internal.client.RequestPublisher;
+import io.simplesource.kafka.internal.client.ResponseSubscription;
 import io.simplesource.kafka.internal.streams.topology.EventSourcedTopology;
-import io.simplesource.kafka.internal.util.NamedThreadFactory;
 import io.simplesource.kafka.model.AggregateUpdate;
 import io.simplesource.kafka.model.CommandRequest;
 import io.simplesource.kafka.model.CommandResponse;
 import io.simplesource.kafka.model.ValueWithSequence;
 import io.simplesource.kafka.spec.AggregateSpec;
 import io.simplesource.kafka.spec.CommandSpec;
+import monix.execution.Scheduler;
+import monix.execution.Scheduler$;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.KeyValue;
@@ -28,8 +32,6 @@ import java.util.ArrayList;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.UUID;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
@@ -48,8 +50,7 @@ public final class AggregateTestDriver<K, C, E, A> {
             final KafkaConfig kafkaConfig
     ) {
         final StreamsBuilder builder = new StreamsBuilder();
-        final ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor(
-                new NamedThreadFactory("QueryAPI-scheduler"));
+        final Scheduler scheduledExecutor = Scheduler$.MODULE$.global();
 
         EventSourcedTopology.addTopology(aggregateSpec, builder);
 

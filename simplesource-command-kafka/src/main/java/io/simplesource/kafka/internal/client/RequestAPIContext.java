@@ -5,11 +5,11 @@ import io.simplesource.kafka.spec.TopicSpec;
 import io.simplesource.kafka.spec.WindowSpec;
 import lombok.Builder;
 import lombok.Value;
+import monix.execution.Scheduler;
 import org.apache.kafka.common.serialization.Serde;
 
 import java.time.Duration;
 import java.util.UUID;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
@@ -17,7 +17,7 @@ import java.util.function.Function;
 @Builder
 public final class RequestAPIContext<K, I, RK, R> {
     final KafkaConfig kafkaConfig;
-    final ScheduledExecutorService scheduler;
+    final Scheduler scheduler;
     final String requestTopic;
     final String responseTopicMapTopic;
     final String privateResponseTopic;

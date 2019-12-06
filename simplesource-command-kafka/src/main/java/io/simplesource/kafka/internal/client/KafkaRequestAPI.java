@@ -155,10 +155,10 @@ public final class KafkaRequestAPI<K, I, RK, R> {
             if (response.isPresent())
                 completableFuture.complete(response.get());
             else {
-                ctx.scheduler().schedule(() -> {
+                ctx.scheduler().scheduleOnce(timeout.toMillis(), TimeUnit.MILLISECONDS, () -> {
                     final TimeoutException ex = new TimeoutException("Timeout after " + timeout);
                     completableFuture.complete(ctx.errorValue().apply(h.input, ex));
-                }, timeout.toMillis(), TimeUnit.MILLISECONDS);
+                });
                 h.responseFutures.add(completableFuture);
             }
             return h;

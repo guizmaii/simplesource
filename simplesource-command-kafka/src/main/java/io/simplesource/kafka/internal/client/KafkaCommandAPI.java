@@ -2,19 +2,19 @@ package io.simplesource.kafka.internal.client;
 
 import io.simplesource.api.CommandAPI;
 import io.simplesource.api.CommandError;
+import io.simplesource.api.CommandId;
 import io.simplesource.data.FutureResult;
 import io.simplesource.data.Result;
 import io.simplesource.data.Sequence;
 import io.simplesource.kafka.api.CommandSerdes;
 import io.simplesource.kafka.dsl.KafkaConfig;
-import io.simplesource.api.CommandId;
 import io.simplesource.kafka.model.CommandRequest;
 import io.simplesource.kafka.model.CommandResponse;
 import io.simplesource.kafka.spec.CommandSpec;
+import monix.execution.Scheduler;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -25,7 +25,7 @@ public final class KafkaCommandAPI<K, C> implements CommandAPI<K, C> {
 
     private KafkaRequestAPI<K, CommandRequest<K, C>, CommandId, CommandResponse<K>> requestAPI;
 
-    public KafkaCommandAPI(final CommandSpec<K, C> commandSpec, final KafkaConfig kafkaConfig, final ScheduledExecutorService scheduler) {
+    public KafkaCommandAPI(final CommandSpec<K, C> commandSpec, final KafkaConfig kafkaConfig, final Scheduler scheduler) {
         RequestAPIContext<K, CommandRequest<K, C>, CommandId, CommandResponse<K>> ctx = getRequestAPIContext(commandSpec, kafkaConfig, scheduler);
         requestAPI = new KafkaRequestAPI<>(ctx);
     }
@@ -33,7 +33,7 @@ public final class KafkaCommandAPI<K, C> implements CommandAPI<K, C> {
     public KafkaCommandAPI(
         final CommandSpec<K, C> commandSpec,
         final KafkaConfig kafkaConfig,
-        final ScheduledExecutorService scheduler,
+        final Scheduler scheduler,
         final RequestPublisher<K, CommandRequest<K, C>> requestSender,
         final RequestPublisher<CommandId, String> responseTopicMapSender,
         final Function<BiConsumer<CommandId, CommandResponse<K>>, ResponseSubscription> attachReceiver) {
@@ -68,7 +68,7 @@ public final class KafkaCommandAPI<K, C> implements CommandAPI<K, C> {
     public static <K, C> RequestAPIContext<K, CommandRequest<K, C>, CommandId, CommandResponse<K>> getRequestAPIContext(
         CommandSpec<K, C> commandSpec,
         KafkaConfig kafkaConfig,
-        ScheduledExecutorService scheduler
+        Scheduler scheduler
     ) {
         CommandSerdes<K, C> serdes = commandSpec.serdes();
         String responseTopicBase = commandSpec.topicName(COMMAND_RESPONSE);

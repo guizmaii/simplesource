@@ -4,13 +4,12 @@ package io.simplesource.kafka.client;
 import io.simplesource.api.CommandAPI;
 import io.simplesource.kafka.dsl.KafkaConfig;
 import io.simplesource.kafka.internal.client.KafkaCommandAPI;
-import io.simplesource.kafka.internal.util.NamedThreadFactory;
 import io.simplesource.kafka.spec.CommandSpec;
+import monix.execution.Scheduler;
+import monix.execution.Scheduler$;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 
 import static java.util.Objects.requireNonNull;
@@ -18,8 +17,7 @@ import static java.util.Objects.requireNonNull;
 public final class EventSourcedClient {
     private KafkaConfig kafkaConfig;
     private Map<String, CommandSpec<?, ?>> commandConfigMap = new HashMap<>();
-    private ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(
-            new NamedThreadFactory("EventSourcedClient-scheduler"));
+    private Scheduler scheduler = Scheduler$.MODULE$.global();
 
     public EventSourcedClient withKafkaConfig(
             final Function<? super KafkaConfig.Builder, KafkaConfig> builderFn) {
@@ -33,7 +31,7 @@ public final class EventSourcedClient {
         return this;
     }
 
-    public EventSourcedClient withScheduler(final ScheduledExecutorService scheduler) {
+    public EventSourcedClient withScheduler(final Scheduler scheduler) {
         this.scheduler = scheduler;
         return this;
     }

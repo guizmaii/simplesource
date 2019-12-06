@@ -15,6 +15,12 @@
     <artifactId>simplesource-command-kafka</artifactId>
 
     <dependencies>
+        <dependency>
+            <groupId>io.monix</groupId>
+            <artifactId>monix-execution_2.13</artifactId>
+            <version>3.1.0</version>
+        </dependency>
+
         <!-- Simple Sourcing -->
         <dependency>
             <groupId>io.simplesource</groupId>
