@@ -3,9 +3,9 @@ package io.simplesource.kafka.util;
 import org.apache.kafka.streams.KafkaStreams;
 import org.slf4j.Logger;
 
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.Objects;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 
 public final class KafkaStreamsUtils {
 
@@ -23,7 +23,7 @@ public final class KafkaStreamsUtils {
                 new Thread(
                         () -> {
                             logger.info("Kafka Streams [{}] is shutting down", streams);
-                            streams.close(15L, TimeUnit.SECONDS);
+                            streams.close(Duration.of(15L, ChronoUnit.SECONDS));
                         }
                 )
         );

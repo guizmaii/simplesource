@@ -23,7 +23,7 @@ import static io.simplesource.kafka.api.AggregateResources.TopicEntity.*;
 
 public final class KafkaCommandAPI<K, C> implements CommandAPI<K, C> {
 
-    private KafkaRequestAPI<K, CommandRequest<K, C>, CommandId, CommandResponse<K>> requestAPI;
+    private final KafkaRequestAPI<K, CommandRequest<K, C>, CommandId, CommandResponse<K>> requestAPI;
 
     public KafkaCommandAPI(final CommandSpec<K, C> commandSpec, final KafkaConfig kafkaConfig, final Scheduler scheduler) {
         RequestAPIContext<K, CommandRequest<K, C>, CommandId, CommandResponse<K>> ctx = getRequestAPIContext(commandSpec, kafkaConfig, scheduler);

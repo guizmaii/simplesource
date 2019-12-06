@@ -17,8 +17,7 @@
     <dependencies>
         <dependency>
             <groupId>io.monix</groupId>
-            <artifactId>monix-execution_2.13</artifactId>
-            <version>3.1.0</version>
+            <artifactId>monix-execution_2.12</artifactId>
         </dependency>
 
         <!-- Simple Sourcing -->

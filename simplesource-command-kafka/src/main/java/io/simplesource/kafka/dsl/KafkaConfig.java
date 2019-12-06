@@ -63,15 +63,21 @@ public class KafkaConfig {
     }
 
     public static class Builder {
-        private Properties config = new Properties();
+        private final Properties config = new Properties();
+        private final boolean clientOnly;
 
-        public Builder() {
+        public Builder(boolean clientOnly) {
+            this.clientOnly = clientOnly;
             config.put(StreamsConfig.PROCESSING_GUARANTEE_CONFIG, StreamsConfig.EXACTLY_ONCE);
             config.put(StreamsConfig.COMMIT_INTERVAL_MS_CONFIG, 20);
             config.put(StreamsConfig.STATE_DIR_CONFIG, "/tmp/kafka-streams");
             config.put(StreamsConfig.TOPOLOGY_OPTIMIZATION, StreamsConfig.OPTIMIZE);
             config.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "snappy");
             config.put(ProducerConfig.LINGER_MS_CONFIG, 0);
+        }
+
+        public Builder() {
+            this(false);
         }
 
         public Builder withKafkaApplicationId(final String applicationId) {
@@ -114,12 +120,7 @@ public class KafkaConfig {
         }
 
         public KafkaConfig build() {
-            validateKafkaConfig(false);
-            return new KafkaConfig(config);
-        }
-
-        public KafkaConfig build(boolean clientOnly) {
-            validateKafkaConfig(clientOnly);
+            validateKafkaConfig(this.clientOnly);
             return new KafkaConfig(config);
         }
 

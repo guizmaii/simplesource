@@ -6,28 +6,17 @@ import io.simplesource.kafka.dsl.KafkaConfig;
 import io.simplesource.kafka.internal.client.KafkaCommandAPI;
 import io.simplesource.kafka.spec.CommandSpec;
 import monix.execution.Scheduler;
-import monix.execution.Scheduler$;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.function.Function;
 
 import static java.util.Objects.requireNonNull;
 
 public final class EventSourcedClient {
     private KafkaConfig kafkaConfig;
-    private Map<String, CommandSpec<?, ?>> commandConfigMap = new HashMap<>();
-    private Scheduler scheduler = Scheduler$.MODULE$.global();
+    private Scheduler scheduler;
 
-    public EventSourcedClient withKafkaConfig(
-            final Function<? super KafkaConfig.Builder, KafkaConfig> builderFn) {
-        KafkaConfig.Builder builder = new KafkaConfig.Builder() {
-            @Override
-            public KafkaConfig build() {
-                return super.build(true);
-            }
-        };
-        kafkaConfig = builderFn.apply(builder);
+    public EventSourcedClient withKafkaConfig(final Function<? super KafkaConfig.Builder, KafkaConfig> builderFn) {
+        kafkaConfig = builderFn.apply(new KafkaConfig.Builder(true));
         return this;
     }
 
@@ -37,9 +26,7 @@ public final class EventSourcedClient {
     }
 
     public <K, C> CommandAPI<K, C> createCommandAPI(final Function<CommandAPIBuilder<K, C>, CommandSpec<K, C>> buildSteps) {
-        CommandAPIBuilder<K, C> builder = CommandAPIBuilder.newBuilder();
-        CommandSpec<K, C> commandSpec = buildSteps.apply(builder);
-        return createCommandAPI(commandSpec);
+        return createCommandAPI(buildSteps.apply(CommandAPIBuilder.newBuilder()));
     }
 
     public <K, C> CommandAPI<K, C> createCommandAPI(final CommandSpec<K, C> commandSpec) {
